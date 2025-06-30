@@ -61,7 +61,7 @@ Common flags:
 ## 4. Python Package Layout
 
 ```
-mz_schedctl/
+src/mz_schedctl/
  ├─ __main__.py          # arg‑parse, mode dispatch
  ├─ db.py                # thin psycopg pool + helpers
  ├─ models.py            # @dataclass StrategyState, ReplicaSpec, etc.

@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from mz-schedctl!")
+from .__main__ import main
+
+__all__ = ['main']

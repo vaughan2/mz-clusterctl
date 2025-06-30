@@ -141,10 +141,10 @@ State stored: `{"last_decision_ts": "...", "cooldown_s": 120}`.
 
 ## 8. Local Development Workflow
 
-1. `pip install -e .[dev]` (includes `psycopg[binary]`, `black`, `pytest`).
+1. `uv sync` (installs dependencies and sets up development environment).
 2. `cp .env.example .env` ➜ adjust `DATABASE_URL`.
-3. `python -m mz_schedctl plan --verbose`.
-4. Verify SQL, then `python -m mz_schedctl apply`.
+3. `uv run mz-schedctl plan --verbose` or `uv run python -m mz_schedctl plan --verbose`.
+4. Verify SQL, then `uv run mz-schedctl apply` or `uv run python -m mz_schedctl apply`.
 
 ## 9. Next‑Steps / Open Items
 

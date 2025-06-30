@@ -11,6 +11,7 @@ dependencies = [
     "psycopg-pool>=3.2.6",
     "psycopg[binary]>=3.2.9",
     "structlog>=25.4.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]

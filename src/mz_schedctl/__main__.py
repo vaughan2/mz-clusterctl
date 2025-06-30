@@ -10,11 +10,16 @@ import os
 import sys
 from typing import Optional
 
+from dotenv import load_dotenv
+
 from .engine import Engine
 from .log import setup_logging
 
 
 def main():
+    # Load environment variables from .env file
+    load_dotenv()
+    
     parser = argparse.ArgumentParser(
         prog='mz-schedctl',
         description='External cluster-scheduling controller for Materialize'

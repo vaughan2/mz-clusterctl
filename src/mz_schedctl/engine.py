@@ -49,6 +49,7 @@ class Engine:
         
         with self.db:
             self.db.ensure_tables()
+            logger.debug("Database tables ensured, starting decision cycle for plan mode")
             actions_by_cluster = self._run_decision_cycle(dry_run=True)
             
             if not any(actions_by_cluster.values()):
@@ -78,6 +79,7 @@ class Engine:
         
         with self.db:
             self.db.ensure_tables()
+            logger.debug("Database tables ensured, starting decision cycle for apply mode")
             actions_by_cluster = self._run_decision_cycle(dry_run=False)
             
             total_actions = sum(len(actions) for actions in actions_by_cluster.values())
@@ -100,6 +102,7 @@ class Engine:
         
         with self.db:
             self.db.ensure_tables()
+            logger.debug("Database tables ensured, starting wipe state operation")
             
             if self.cluster_filter:
                 # Find clusters matching filter and wipe only those
@@ -119,9 +122,16 @@ class Engine:
         Returns:
             Dictionary mapping ClusterInfo to list of actions
         """
+        logger.debug("Starting decision cycle", extra={'dry_run': dry_run, 'cluster_filter': self.cluster_filter})
+        
         # 1. Bootstrap - load configurations
+        logger.debug("Loading clusters")
         clusters = self.db.get_clusters(self.cluster_filter)
+        logger.debug("Clusters loaded", extra={'cluster_count': len(clusters)})
+        
+        logger.debug("Loading strategy configs")
         strategy_configs = self.db.get_strategy_configs()
+        logger.debug("Strategy configs loaded", extra={'config_count': len(strategy_configs)})
         
         # Create lookup for strategies by cluster
         config_by_cluster = {config.cluster_id: config for config in strategy_configs}
@@ -160,22 +170,30 @@ class Engine:
                 strategy.validate_config(config.config)
                 
                 # 2. State hydration
+                logger.debug("Hydrating state", extra={'cluster_id': str(cluster.id), 'cluster_name': cluster.name})
                 current_state = self._get_or_create_state(cluster, config, strategy)
+                logger.debug("State hydrated", extra={'cluster_id': str(cluster.id), 'state_version': current_state.state_version})
                 
                 # 3. Get signals
+                logger.debug("Getting cluster signals", extra={'cluster_id': str(cluster.id), 'cluster_name': cluster.name})
                 with self.db.get_connection() as conn:
                     signals = get_cluster_signals(conn, cluster.id, cluster.name)
+                logger.debug("Cluster signals retrieved", extra={'cluster_id': str(cluster.id), 'signals': str(signals)})
                 
                 # 4. Run strategy
+                logger.debug("Running strategy", extra={'cluster_id': str(cluster.id), 'strategy_type': config.strategy_type})
                 actions = strategy.decide(current_state, config.config, signals)
                 actions_by_cluster[cluster] = actions
+                logger.debug("Strategy completed", extra={'cluster_id': str(cluster.id), 'actions_count': len(actions)})
                 
                 # 5. Persist state (if not dry run and actions were generated)
                 if not dry_run:
+                    logger.debug("Persisting state", extra={'cluster_id': str(cluster.id)})
                     new_state = strategy.next_state(current_state, config.config, signals, actions)
                     # Populate cluster name in state payload
                     new_state.payload['cluster_name'] = cluster.name
                     self.db.upsert_strategy_state(new_state)
+                    logger.debug("State persisted", extra={'cluster_id': str(cluster.id), 'new_state_version': new_state.state_version})
                 
                 logger.debug(
                     "Processed cluster",
@@ -205,7 +223,9 @@ class Engine:
     def _get_or_create_state(self, cluster: ClusterInfo, config: StrategyConfig, 
                            strategy) -> StrategyState:
         """Get existing state or create initial state for a cluster/strategy"""
+        logger.debug("Getting or creating state", extra={'cluster_id': str(cluster.id), 'cluster_id_type': type(cluster.id).__name__, 'strategy_type': config.strategy_type})
         existing_state = self.db.get_strategy_state(cluster.id)
+        logger.debug("State query completed", extra={'cluster_id': str(cluster.id), 'has_existing_state': existing_state is not None})
         
         if existing_state is None:
             # No existing state, create initial state

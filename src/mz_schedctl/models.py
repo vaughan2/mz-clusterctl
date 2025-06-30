@@ -47,21 +47,24 @@ class Action:
         return f"{self.sql} -- {self.reason}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ClusterInfo:
     """Information about a cluster from SHOW CLUSTERS"""
-    id: UUID
+    id: str
     name: str
-    replicas: List[str] = field(default_factory=list)
+    replicas: tuple = field(default_factory=tuple)
     managed: bool = True
     
     @classmethod
     def from_db_row(cls, row: Dict[str, Any]) -> 'ClusterInfo':
         """Create ClusterInfo from database row"""
+        replicas = row.get('replicas', [])
+        if isinstance(replicas, list):
+            replicas = tuple(replicas)
         return cls(
-            id=UUID(row['id']),
+            id=row['id'],
             name=row['name'],
-            replicas=row.get('replicas', []),
+            replicas=replicas,
             managed=row.get('managed', True)
         )
 
@@ -69,7 +72,7 @@ class ClusterInfo:
 @dataclass
 class StrategyState:
     """State maintained by a strategy between executions"""
-    cluster_id: UUID
+    cluster_id: str
     strategy_type: str
     state_version: int
     payload: Dict[str, Any] = field(default_factory=dict)
@@ -78,7 +81,7 @@ class StrategyState:
     def to_json(self) -> str:
         """Serialize state to JSON for database storage"""
         data = {
-            'cluster_id': str(self.cluster_id),
+            'cluster_id': self.cluster_id,
             'strategy_type': self.strategy_type,
             'state_version': self.state_version,
             'payload': self.payload,
@@ -102,7 +105,7 @@ class StrategyState:
 @dataclass
 class StrategyConfig:
     """Configuration for a strategy from mz_cluster_strategies table"""
-    cluster_id: UUID
+    cluster_id: str
     strategy_type: str
     config: Dict[str, Any]
     updated_at: Optional[datetime] = None
@@ -111,7 +114,7 @@ class StrategyConfig:
     def from_db_row(cls, row: Dict[str, Any]) -> 'StrategyConfig':
         """Create StrategyConfig from database row"""
         return cls(
-            cluster_id=UUID(row['cluster_id']),
+            cluster_id=row['cluster_id'],
             strategy_type=row['strategy_type'],
             config=row['config'],
             updated_at=row.get('updated_at')
@@ -121,7 +124,7 @@ class StrategyConfig:
 @dataclass
 class Signals:
     """Signals/metrics used by strategies to make decisions"""
-    cluster_id: UUID
+    cluster_id: str
     last_activity_ts: Optional[datetime] = None
     hydration_status: Optional[str] = None
     current_replicas: int = 0

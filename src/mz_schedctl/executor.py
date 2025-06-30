@@ -82,7 +82,9 @@ class Executor:
                 }
                 
                 # Execute the SQL
+                logger.debug("About to execute action SQL", extra={'cluster_id': str(cluster_id), 'action_sql': action.sql})
                 result = self.db.execute_sql(action.sql)
+                logger.debug("Action SQL executed successfully", extra={'cluster_id': str(cluster_id), 'result': result})
                 executed = True
                 summary['executed'] += 1
                 
@@ -140,6 +142,7 @@ class Executor:
             finally:
                 # Always log to audit table
                 try:
+                    logger.debug("Logging action to audit table", extra={'cluster_id': str(cluster_id), 'executed': executed})
                     action_id = self.db.log_action(
                         cluster_id=cluster_id,
                         action_sql=action.sql,
@@ -147,6 +150,7 @@ class Executor:
                         executed=executed,
                         error_message=error_message
                     )
+                    logger.debug("Action logged to audit table successfully", extra={'cluster_id': str(cluster_id), 'action_id': action_id})
                     
                     logger.debug(
                         "Action logged to audit table",

@@ -11,3 +11,6 @@ wheels/
 
 # env config
 .env
+
+# Claude
+.claude

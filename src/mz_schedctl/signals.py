@@ -92,30 +92,29 @@ def _get_replica_count(conn: psycopg.Connection, cluster_name: str) -> int:
 
 def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[datetime]:
     """
-    Get timestamp of last activity on a cluster
+    Get timestamp of last activity on a cluster using mz_recent_activity_log_redacted
 
-    This is a placeholder implementation. In a real deployment, you would query
-    appropriate system tables or metrics to determine cluster activity.
-
-    Possible approaches:
-    - Query mz_internal.mz_active_peeks for active queries
-    - Look at mz_internal.mz_dataflow_operators for dataflow activity
-    - Check mz_internal.mz_hydration_status for materialized view updates
+    Queries the recent activity log to find the most recent activity for the specified cluster.
     """
     logger.debug("Starting _get_last_activity", extra={"cluster_id": cluster_id})
     with conn.cursor() as cur:
-        # Placeholder query - replace with actual activity detection logic
-        # This example looks for recent queries that might have used the cluster
         sql = """
             SELECT MAX(finished_at) as last_activity
-            FROM mz_internal.mz_statement_execution_history 
-            WHERE status = 'success'
-            AND finished_at > now() - INTERVAL '1 hour'
-            LIMIT 1
+            FROM mz_internal.mz_recent_activity_log_redacted 
+            WHERE cluster_id = %s
+            AND finished_at IS NOT NULL
         """
-        logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+        params = (cluster_id,)
+        logger.debug(
+            "Executing SQL",
+            extra={
+                "sql": sql,
+                "params": params,
+                "param_types": [type(p).__name__ for p in params],
+            },
+        )
         try:
-            cur.execute(sql)
+            cur.execute(sql, params)
             result = cur.fetchone()
             if result and result["last_activity"]:
                 logger.debug(
@@ -132,7 +131,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
         except Exception as e:
             logger.error(
                 "Error executing SQL",
-                extra={"sql": sql, "params": None, "error": str(e)},
+                extra={"sql": sql, "params": params, "error": str(e)},
                 exc_info=True,
             )
             raise

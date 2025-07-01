@@ -46,7 +46,6 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
 
     Queries the recent activity log to find the most recent activity for the specified cluster.
     """
-    logger.debug("Starting _get_last_activity", extra={"cluster_id": cluster_id})
     with conn.cursor() as cur:
         sql = """
             SELECT MAX(finished_at) as last_activity
@@ -55,7 +54,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
             AND finished_at IS NOT NULL
         """
         params = (cluster_id,)
-        logger.debug(
+        logger.trace(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -67,7 +66,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
             cur.execute(sql, params)
             result = cur.fetchone()
             if result and result["last_activity"]:
-                logger.debug(
+                logger.trace(
                     "Last activity found",
                     extra={
                         "cluster_id": cluster_id,
@@ -76,7 +75,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
                 )
                 return result["last_activity"]
 
-            logger.debug("No last activity found", extra={"cluster_id": cluster_id})
+            logger.trace("No last activity found", extra={"cluster_id": cluster_id})
             return None
         except Exception as e:
             logger.error(
@@ -93,7 +92,6 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
 
     This queries the hydration status of compute objects on the cluster.
     """
-    logger.debug("Starting _get_hydration_status", extra={"cluster_name": cluster_name})
     with conn.cursor() as cur:
         sql = """
             SELECT 
@@ -105,7 +103,7 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
             WHERE c.name = %s
         """
         params = (cluster_name,)
-        logger.debug(
+        logger.trace(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -134,7 +132,7 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
         total_objects = result["total_objects"]
         hydrated_objects = result["hydrated_objects"]
 
-        logger.debug(
+        logger.trace(
             "Hydration status calculated",
             extra={
                 "cluster_name": cluster_name,
@@ -174,7 +172,7 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
             WHERE c.name = %s
         """
         params = (cluster_name,)
-        logger.debug(
+        logger.trace(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -206,7 +204,7 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
             SELECT COUNT(*) as active_queries
             FROM mz_internal.mz_active_peeks
         """
-        logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+        logger.trace("Executing SQL", extra={"sql": sql, "params": None})
         try:
             cur.execute(sql)
         except Exception as e:

@@ -111,11 +111,10 @@ class Database:
                 clusters = []
 
                 for row in cur.fetchall():
-                    logger.debug("Processing cluster row", extra={"row": row})
                     cluster = ClusterInfo.from_db_row(row)
                     logger.debug(
                         "Created ClusterInfo",
-                        extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
+                        extra={"cluster_id": cluster.id, "cluster_name": cluster.name, "replicas": cluster.replicas},
                     )
 
                     # Apply name filter if provided
@@ -165,7 +164,6 @@ class Database:
         self, cluster_id: Optional[str] = None
     ) -> List[StrategyConfig]:
         """Get strategy configurations from mz_cluster_strategies"""
-        logger.debug("Starting get_strategy_configs", extra={"cluster_id": cluster_id})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 if cluster_id:
@@ -204,7 +202,6 @@ class Database:
 
     def get_strategy_state(self, cluster_id: str) -> Optional[StrategyState]:
         """Get strategy state for a cluster"""
-        logger.debug("Starting get_strategy_state", extra={"cluster_id": cluster_id})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 sql = "SELECT * FROM mz_cluster_strategy_state WHERE cluster_id = %s"

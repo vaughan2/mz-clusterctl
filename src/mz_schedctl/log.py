@@ -71,8 +71,6 @@ def setup_logging(verbose: int = 0):
             structlog.dev.set_exc_info,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.dev.ConsoleRenderer()
-            if verbose >= 1
-            else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
         logger_factory=structlog.WriteLoggerFactory(),

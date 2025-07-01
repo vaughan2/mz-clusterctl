@@ -43,7 +43,7 @@ class Executor:
 
         summary = {"total": len(actions), "executed": 0, "failed": 0, "errors": []}
 
-        logger.info(
+        logger.debug(
             "Starting action execution",
             extra={"cluster_id": cluster_id, "total_actions": len(actions)},
         )
@@ -54,7 +54,7 @@ class Executor:
             error_message = None
 
             try:
-                logger.info(
+                logger.debug(
                     f"Executing action {i}/{len(actions)}",
                     extra={
                         "cluster_id": cluster_id,

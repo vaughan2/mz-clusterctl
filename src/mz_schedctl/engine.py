@@ -127,11 +127,9 @@ class Engine:
 
         # 1. Bootstrap - load configurations
         clusters = self.db.get_clusters(self.cluster_filter)
-        logger.debug("Clusters loaded", extra={"cluster_count": len(clusters)})
 
-        logger.debug("Loading strategy configs")
         strategy_configs = self.db.get_strategy_configs()
-        logger.debug(
+        logger.info(
             "Strategy configs loaded", extra={"config_count": len(strategy_configs)}
         )
 
@@ -172,33 +170,26 @@ class Engine:
                 strategy.validate_config(config.config)
 
                 # 2. State hydration
-                logger.debug(
-                    "Hydrating state",
-                    extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
-                )
                 current_state = self._get_or_create_state(cluster, config, strategy)
-                logger.debug(
+                logger.trace(
                     "State hydrated",
                     extra={
                         "cluster_id": cluster.id,
                         "state_version": current_state.state_version,
+                        "current_state": current_state,
                     },
                 )
 
                 # 3. Get signals
-                logger.debug(
-                    "Getting cluster signals",
-                    extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
-                )
                 with self.db.get_connection() as conn:
                     signals = get_cluster_signals(conn, cluster.id, cluster.name)
-                logger.debug(
+                logger.info(
                     "Cluster signals retrieved",
                     extra={"cluster_id": cluster.id, "signals": str(signals)},
                 )
 
                 # 4. Run strategy
-                logger.debug(
+                logger.info(
                     "Running strategy",
                     extra={
                         "cluster_id": cluster.id,
@@ -263,7 +254,7 @@ class Engine:
         self, cluster: ClusterInfo, config: StrategyConfig, strategy
     ) -> StrategyState:
         """Get existing state or create initial state for a cluster/strategy"""
-        logger.debug(
+        logger.trace(
             "Getting or creating state",
             extra={
                 "cluster_id": cluster.id,
@@ -271,7 +262,7 @@ class Engine:
             },
         )
         existing_state = self.db.get_strategy_state(cluster.id)
-        logger.debug(
+        logger.trace(
             "State query completed",
             extra={
                 "cluster_id": cluster.id,

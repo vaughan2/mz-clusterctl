@@ -132,7 +132,6 @@ class Engine:
         )
 
         # 1. Bootstrap - load configurations
-        logger.debug("Loading clusters")
         clusters = self.db.get_clusters(self.cluster_filter)
         logger.debug("Clusters loaded", extra={"cluster_count": len(clusters)})
 

@@ -80,10 +80,6 @@ class Executor:
                     extra={"cluster_id": str(cluster_id), "action_sql": action.sql},
                 )
                 result = self.db.execute_sql(action.sql)
-                logger.debug(
-                    "Action SQL executed successfully",
-                    extra={"cluster_id": str(cluster_id), "result": result},
-                )
                 executed = True
                 summary["executed"] += 1
 

@@ -38,10 +38,8 @@ class Database:
     @contextmanager
     def get_connection(self) -> Iterator[psycopg.Connection]:
         """Get a connection from the pool"""
-        logger.debug("Getting connection from pool")
         with self.pool.connection() as conn:
             conn.row_factory = dict_row
-            logger.debug("Connection obtained successfully")
             yield conn
 
     def ensure_tables(self):
@@ -103,9 +101,6 @@ class Database:
                 logger.debug("Executing SQL", extra={"sql": sql, "params": None})
                 try:
                     cur.execute(sql)
-                    logger.debug(
-                        "SQL executed successfully", extra={"rowcount": cur.rowcount}
-                    )
                 except Exception as e:
                     logger.error(
                         "Error executing SQL",
@@ -152,10 +147,6 @@ class Database:
                     )
                     try:
                         cur.execute(sql, params)
-                        logger.debug(
-                            "SQL executed successfully",
-                            extra={"rowcount": cur.rowcount},
-                        )
                         replica_names = [
                             replica_row["name"] for replica_row in cur.fetchall()
                         ]
@@ -201,10 +192,6 @@ class Database:
                     )
                     try:
                         cur.execute(sql, params)
-                        logger.debug(
-                            "SQL executed successfully",
-                            extra={"rowcount": cur.rowcount},
-                        )
                     except Exception as e:
                         logger.error(
                             "Error executing SQL",
@@ -217,10 +204,6 @@ class Database:
                     logger.debug("Executing SQL", extra={"sql": sql, "params": None})
                     try:
                         cur.execute(sql)
-                        logger.debug(
-                            "SQL executed successfully",
-                            extra={"rowcount": cur.rowcount},
-                        )
                     except Exception as e:
                         logger.error(
                             "Error executing SQL",
@@ -254,9 +237,6 @@ class Database:
                 )
                 try:
                     cur.execute(sql, params)
-                    logger.debug(
-                        "SQL executed successfully", extra={"rowcount": cur.rowcount}
-                    )
                     row = cur.fetchone()
                 except Exception as e:
                     logger.error(
@@ -304,9 +284,6 @@ class Database:
                 )
                 try:
                     cur.execute(sql, params)
-                    logger.debug(
-                        "SQL executed successfully", extra={"rowcount": cur.rowcount}
-                    )
                     conn.commit()
                 except Exception as e:
                     logger.error(
@@ -359,9 +336,6 @@ class Database:
                 )
                 try:
                     cur.execute(sql, params)
-                    logger.debug(
-                        "SQL executed successfully", extra={"rowcount": cur.rowcount}
-                    )
                     conn.commit()
                     return action_id
                 except Exception as e:
@@ -380,9 +354,6 @@ class Database:
                 logger.debug("Executing SQL", extra={"sql": sql, "params": None})
                 try:
                     cur.execute(sql)
-                    logger.debug(
-                        "SQL executed successfully", extra={"rowcount": cur.rowcount}
-                    )
                     conn.commit()
                     return {
                         "rowcount": cur.rowcount,
@@ -417,10 +388,6 @@ class Database:
                     )
                     try:
                         cur.execute(sql, params)
-                        logger.debug(
-                            "SQL executed successfully",
-                            extra={"rowcount": cur.rowcount},
-                        )
                     except Exception as e:
                         logger.error(
                             "Error executing SQL",
@@ -433,10 +400,6 @@ class Database:
                     logger.debug("Executing SQL", extra={"sql": sql, "params": None})
                     try:
                         cur.execute(sql)
-                        logger.debug(
-                            "SQL executed successfully",
-                            extra={"rowcount": cur.rowcount},
-                        )
                     except Exception as e:
                         logger.error(
                             "Error executing SQL",

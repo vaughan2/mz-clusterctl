@@ -74,7 +74,6 @@ def _get_replica_count(conn: psycopg.Connection, cluster_name: str) -> int:
         )
         try:
             cur.execute(sql, params)
-            logger.debug("SQL executed successfully", extra={"rowcount": cur.rowcount})
             result = cur.fetchone()
             count = result["count"] if result else 0
             logger.debug(
@@ -117,7 +116,6 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
         logger.debug("Executing SQL", extra={"sql": sql, "params": None})
         try:
             cur.execute(sql)
-            logger.debug("SQL executed successfully", extra={"rowcount": cur.rowcount})
             result = cur.fetchone()
             if result and result["last_activity"]:
                 logger.debug(
@@ -180,7 +178,6 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
         )
         try:
             cur.execute(sql, params)
-            logger.debug("SQL executed successfully", extra={"rowcount": cur.rowcount})
         except Exception as e:
             logger.error(
                 "Error executing SQL",
@@ -245,7 +242,6 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
         )
         try:
             cur.execute(sql, params)
-            logger.debug("SQL executed successfully", extra={"rowcount": cur.rowcount})
         except Exception as e:
             logger.error(
                 "Error executing SQL",
@@ -271,7 +267,6 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
         logger.debug("Executing SQL", extra={"sql": sql, "params": None})
         try:
             cur.execute(sql)
-            logger.debug("SQL executed successfully", extra={"rowcount": cur.rowcount})
         except Exception as e:
             logger.error(
                 "Error executing SQL",

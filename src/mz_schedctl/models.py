@@ -7,7 +7,6 @@ Contains dataclasses for strategy state, replica specifications, and actions.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
-from uuid import UUID
 import json
 
 
@@ -106,7 +105,7 @@ class StrategyState:
         """Deserialize state from JSON"""
         data = json.loads(json_str)
         return cls(
-            cluster_id=UUID(data["cluster_id"]),
+            cluster_id=data["cluster_id"],
             strategy_type=data["strategy_type"],
             state_version=data["state_version"],
             payload=data["payload"],

@@ -66,7 +66,7 @@ class BurstStrategy(Strategy):
                 logger.debug(
                     "Skipping decision due to cooldown",
                     extra={
-                        "cluster_id": str(signals.cluster_id),
+                        "cluster_id": signals.cluster_id,
                         "cooldown_remaining": cooldown_seconds
                         - (now - last_decision).total_seconds(),
                     },
@@ -93,7 +93,7 @@ class BurstStrategy(Strategy):
                 logger.info(
                     "Scaling down idle cluster",
                     extra={
-                        "cluster_id": str(signals.cluster_id),
+                        "cluster_id": signals.cluster_id,
                         "idle_seconds": signals.seconds_since_activity,
                         "threshold": idle_after_s,
                         "replicas_to_remove": current_replicas,
@@ -122,7 +122,7 @@ class BurstStrategy(Strategy):
                 logger.info(
                     "Scaling up cluster",
                     extra={
-                        "cluster_id": str(signals.cluster_id),
+                        "cluster_id": signals.cluster_id,
                         "current_replicas": current_replicas,
                         "max_replicas": max_replicas,
                         "replica_size": replica_size,

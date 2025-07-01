@@ -7,7 +7,7 @@ Provides PostgreSQL connection pool and database schema management.
 import json
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import psycopg
 from psycopg.rows import dict_row
@@ -95,7 +95,6 @@ class Database:
 
     def get_clusters(self, name_filter: Optional[str] = None) -> List[ClusterInfo]:
         """Get cluster information from mz_catalog.mz_clusters"""
-        logger.trace("Starting get_clusters", extra={"name_filter": name_filter})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 sql = "SELECT id, name FROM mz_catalog.mz_clusters"
@@ -112,21 +111,11 @@ class Database:
                 clusters = []
 
                 for row in cur.fetchall():
-                    logger.debug(
-                        "Processing cluster row",
-                        extra={
-                            "row": row,
-                            "row_types": {k: type(v).__name__ for k, v in row.items()},
-                        },
-                    )
+                    logger.debug("Processing cluster row", extra={"row": row})
                     cluster = ClusterInfo.from_db_row(row)
                     logger.debug(
                         "Created ClusterInfo",
-                        extra={
-                            "cluster_id": cluster.id,
-                            "cluster_id_type": type(cluster.id).__name__,
-                            "cluster_name": cluster.name,
-                        },
+                        extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
                     )
 
                     # Apply name filter if provided
@@ -143,7 +132,6 @@ class Database:
                         extra={
                             "sql": sql,
                             "params": params,
-                            "param_types": [type(p).__name__ for p in params],
                         },
                     )
                     try:
@@ -174,13 +162,10 @@ class Database:
                 return clusters
 
     def get_strategy_configs(
-        self, cluster_id: Optional[UUID] = None
+        self, cluster_id: Optional[str] = None
     ) -> List[StrategyConfig]:
         """Get strategy configurations from mz_cluster_strategies"""
-        logger.debug(
-            "Starting get_strategy_configs",
-            extra={"cluster_id": str(cluster_id) if cluster_id else None},
-        )
+        logger.debug("Starting get_strategy_configs", extra={"cluster_id": cluster_id})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 if cluster_id:
@@ -191,7 +176,6 @@ class Database:
                         extra={
                             "sql": sql,
                             "params": params,
-                            "param_types": [type(p).__name__ for p in params],
                         },
                     )
                     try:
@@ -220,13 +204,7 @@ class Database:
 
     def get_strategy_state(self, cluster_id: str) -> Optional[StrategyState]:
         """Get strategy state for a cluster"""
-        logger.debug(
-            "Starting get_strategy_state",
-            extra={
-                "cluster_id": cluster_id,
-                "cluster_id_type": type(cluster_id).__name__,
-            },
-        )
+        logger.debug("Starting get_strategy_state", extra={"cluster_id": cluster_id})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 sql = "SELECT * FROM mz_cluster_strategy_state WHERE cluster_id = %s"
@@ -236,7 +214,6 @@ class Database:
                     extra={
                         "sql": sql,
                         "params": params,
-                        "param_types": [type(p).__name__ for p in params],
                     },
                 )
                 try:
@@ -287,7 +264,6 @@ class Database:
                     extra={
                         "sql": sql,
                         "params": params,
-                        "param_types": [type(p).__name__ for p in params],
                     },
                 )
                 try:
@@ -339,7 +315,6 @@ class Database:
                     extra={
                         "sql": sql,
                         "params": params,
-                        "param_types": [type(p).__name__ for p in params],
                     },
                 )
                 try:
@@ -375,12 +350,9 @@ class Database:
                     )
                     raise
 
-    def wipe_strategy_state(self, cluster_id: Optional[UUID] = None):
+    def wipe_strategy_state(self, cluster_id: Optional[str] = None):
         """Clear strategy state table"""
-        logger.debug(
-            "Starting wipe_strategy_state",
-            extra={"cluster_id": str(cluster_id) if cluster_id else None},
-        )
+        logger.debug("Starting wipe_strategy_state", extra={"cluster_id": cluster_id})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 if cluster_id:
@@ -391,7 +363,6 @@ class Database:
                         extra={
                             "sql": sql,
                             "params": params,
-                            "param_types": [type(p).__name__ for p in params],
                         },
                     )
                     try:

@@ -147,7 +147,7 @@ class Engine:
             if cluster.id not in config_by_cluster:
                 logger.debug(
                     "No strategy configured for cluster",
-                    extra={"cluster_id": str(cluster.id), "cluster_name": cluster.name},
+                    extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
                 )
                 continue
 
@@ -158,7 +158,7 @@ class Engine:
                 logger.error(
                     "Unknown strategy type",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "strategy_type": config.strategy_type,
                     },
                 )
@@ -174,13 +174,13 @@ class Engine:
                 # 2. State hydration
                 logger.debug(
                     "Hydrating state",
-                    extra={"cluster_id": str(cluster.id), "cluster_name": cluster.name},
+                    extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
                 )
                 current_state = self._get_or_create_state(cluster, config, strategy)
                 logger.debug(
                     "State hydrated",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "state_version": current_state.state_version,
                     },
                 )
@@ -188,20 +188,20 @@ class Engine:
                 # 3. Get signals
                 logger.debug(
                     "Getting cluster signals",
-                    extra={"cluster_id": str(cluster.id), "cluster_name": cluster.name},
+                    extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
                 )
                 with self.db.get_connection() as conn:
                     signals = get_cluster_signals(conn, cluster.id, cluster.name)
                 logger.debug(
                     "Cluster signals retrieved",
-                    extra={"cluster_id": str(cluster.id), "signals": str(signals)},
+                    extra={"cluster_id": cluster.id, "signals": str(signals)},
                 )
 
                 # 4. Run strategy
                 logger.debug(
                     "Running strategy",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "strategy_type": config.strategy_type,
                     },
                 )
@@ -212,16 +212,14 @@ class Engine:
                 logger.debug(
                     "Strategy completed",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "actions_count": len(actions),
                     },
                 )
 
                 # 5. Persist state (if not dry run and actions were generated)
                 if not dry_run:
-                    logger.debug(
-                        "Persisting state", extra={"cluster_id": str(cluster.id)}
-                    )
+                    logger.debug("Persisting state", extra={"cluster_id": cluster.id})
                     new_state = strategy.next_state(
                         current_state, config.config, signals, cluster, actions
                     )
@@ -231,7 +229,7 @@ class Engine:
                     logger.debug(
                         "State persisted",
                         extra={
-                            "cluster_id": str(cluster.id),
+                            "cluster_id": cluster.id,
                             "new_state_version": new_state.state_version,
                         },
                     )
@@ -239,7 +237,7 @@ class Engine:
                 logger.debug(
                     "Processed cluster",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "cluster_name": cluster.name,
                         "strategy_type": config.strategy_type,
                         "actions_generated": len(actions),
@@ -250,7 +248,7 @@ class Engine:
                 logger.error(
                     "Error processing cluster",
                     extra={
-                        "cluster_id": str(cluster.id),
+                        "cluster_id": cluster.id,
                         "cluster_name": cluster.name,
                         "strategy_type": config.strategy_type,
                         "error": str(e),
@@ -268,8 +266,7 @@ class Engine:
         logger.debug(
             "Getting or creating state",
             extra={
-                "cluster_id": str(cluster.id),
-                "cluster_id_type": type(cluster.id).__name__,
+                "cluster_id": cluster.id,
                 "strategy_type": config.strategy_type,
             },
         )
@@ -277,7 +274,7 @@ class Engine:
         logger.debug(
             "State query completed",
             extra={
-                "cluster_id": str(cluster.id),
+                "cluster_id": cluster.id,
                 "has_existing_state": existing_state is not None,
             },
         )
@@ -287,7 +284,7 @@ class Engine:
             logger.debug(
                 "Creating initial state",
                 extra={
-                    "cluster_id": str(cluster.id),
+                    "cluster_id": cluster.id,
                     "strategy_type": config.strategy_type,
                 },
             )
@@ -300,7 +297,7 @@ class Engine:
             logger.warning(
                 "State version incompatible, resetting to initial state",
                 extra={
-                    "cluster_id": str(cluster.id),
+                    "cluster_id": cluster.id,
                     "existing_version": existing_state.state_version,
                     "expected_version": strategy.CURRENT_STATE_VERSION,
                 },

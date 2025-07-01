@@ -5,7 +5,6 @@ Handles execution of actions in apply mode with proper error handling and audit 
 """
 
 from typing import Any, Dict, List
-from uuid import UUID
 
 from .db import Database
 from .log import get_logger
@@ -28,14 +27,12 @@ class Executor:
     def __init__(self, db: Database):
         self.db = db
 
-    def execute_actions(
-        self, cluster_id: UUID, actions: List[Action]
-    ) -> Dict[str, Any]:
+    def execute_actions(self, cluster_id: str, actions: List[Action]) -> Dict[str, Any]:
         """
         Execute a list of actions for a cluster
 
         Args:
-            cluster_id: UUID of the cluster
+            cluster_id: ID of the cluster
             actions: List of actions to execute
 
         Returns:
@@ -48,7 +45,7 @@ class Executor:
 
         logger.info(
             "Starting action execution",
-            extra={"cluster_id": str(cluster_id), "total_actions": len(actions)},
+            extra={"cluster_id": cluster_id, "total_actions": len(actions)},
         )
 
         for i, action in enumerate(actions, 1):
@@ -60,7 +57,7 @@ class Executor:
                 logger.info(
                     f"Executing action {i}/{len(actions)}",
                     extra={
-                        "cluster_id": str(cluster_id),
+                        "cluster_id": cluster_id,
                         "action_sql": action.sql,
                         "action_reason": action.reason,
                     },
@@ -77,7 +74,7 @@ class Executor:
                 # Execute the SQL
                 logger.debug(
                     "About to execute action SQL",
-                    extra={"cluster_id": str(cluster_id), "action_sql": action.sql},
+                    extra={"cluster_id": cluster_id, "action_sql": action.sql},
                 )
                 result = self.db.execute_sql(action.sql)
                 executed = True
@@ -95,7 +92,7 @@ class Executor:
                 logger.info(
                     "Action executed successfully",
                     extra={
-                        "cluster_id": str(cluster_id),
+                        "cluster_id": cluster_id,
                         "action_sql": action.sql,
                         "rowcount": result.get("rowcount", 0),
                     },
@@ -125,7 +122,7 @@ class Executor:
                 logger.error(
                     "Action execution failed",
                     extra={
-                        "cluster_id": str(cluster_id),
+                        "cluster_id": cluster_id,
                         "action_sql": action.sql,
                         "error": error_message,
                     },
@@ -137,7 +134,7 @@ class Executor:
                 try:
                     logger.debug(
                         "Logging action to audit table",
-                        extra={"cluster_id": str(cluster_id), "executed": executed},
+                        extra={"cluster_id": cluster_id, "executed": executed},
                     )
                     action_id = self.db.log_action(
                         cluster_id=cluster_id,
@@ -148,13 +145,13 @@ class Executor:
                     )
                     logger.debug(
                         "Action logged to audit table successfully",
-                        extra={"cluster_id": str(cluster_id), "action_id": action_id},
+                        extra={"cluster_id": cluster_id, "action_id": action_id},
                     )
 
                     logger.debug(
                         "Action logged to audit table",
                         extra={
-                            "cluster_id": str(cluster_id),
+                            "cluster_id": cluster_id,
                             "action_id": str(action_id),
                             "executed": executed,
                         },
@@ -165,7 +162,7 @@ class Executor:
                     logger.error(
                         "Failed to log action to audit table",
                         extra={
-                            "cluster_id": str(cluster_id),
+                            "cluster_id": cluster_id,
                             "action_sql": action.sql,
                             "audit_error": str(audit_error),
                         },
@@ -177,7 +174,7 @@ class Executor:
                     logger.warning(
                         "Stopping execution due to error",
                         extra={
-                            "cluster_id": str(cluster_id),
+                            "cluster_id": cluster_id,
                             "failed_action_index": i,
                             "remaining_actions": len(actions) - i,
                         },
@@ -186,7 +183,7 @@ class Executor:
 
         logger.info(
             "Action execution completed",
-            extra={"cluster_id": str(cluster_id), "summary": summary},
+            extra={"cluster_id": cluster_id, "summary": summary},
         )
 
         # Print execution summary

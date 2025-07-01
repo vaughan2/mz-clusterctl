@@ -73,7 +73,7 @@ class Strategy(ABC):
         Create initial state for a new cluster/strategy combination
 
         Args:
-            cluster_id: UUID of the cluster
+            cluster_id: ID of the cluster
             strategy_type: Type of strategy (e.g., 'burst', 'idle_suspend')
 
         Returns:

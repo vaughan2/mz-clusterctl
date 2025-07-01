@@ -62,7 +62,7 @@ class IdleSuspendStrategy(Strategy):
                     logger.debug(
                         "Skipping decision due to cooldown",
                         extra={
-                            "cluster_id": str(signals.cluster_id),
+                            "cluster_id": signals.cluster_id,
                             "cooldown_remaining": cooldown_s
                             - (now - last_decision).total_seconds(),
                         },
@@ -81,7 +81,7 @@ class IdleSuspendStrategy(Strategy):
                 # or activity tracking isn't working. Be conservative and don't suspend.
                 logger.debug(
                     "No activity data available, not suspending",
-                    extra={"cluster_id": str(signals.cluster_id)},
+                    extra={"cluster_id": signals.cluster_id},
                 )
                 return actions
 
@@ -102,7 +102,7 @@ class IdleSuspendStrategy(Strategy):
                 logger.info(
                     "Suspending idle cluster",
                     extra={
-                        "cluster_id": str(signals.cluster_id),
+                        "cluster_id": signals.cluster_id,
                         "idle_seconds": signals.seconds_since_activity,
                         "threshold": idle_after_s,
                         "replicas_to_remove": current_replicas,

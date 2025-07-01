@@ -23,16 +23,12 @@ def get_cluster_signals(
 
     Args:
         conn: Database connection
-        cluster_id: UUID of the cluster
+        cluster_id: ID of the cluster
         cluster_name: Name of the cluster
 
     Returns:
         Signals object with activity and hydration data
     """
-    logger.trace(
-        "Starting get_cluster_signals",
-        extra={"cluster_id": cluster_id, "cluster_name": cluster_name},
-    )
     signals = Signals(cluster_id=cluster_id)
 
     # Get last activity timestamp
@@ -163,7 +159,6 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
 
     Returns a dictionary with various cluster metrics.
     """
-    logger.trace("Starting get_cluster_metrics", extra={"cluster_name": cluster_name})
     metrics = {}
 
     with conn.cursor() as cur:

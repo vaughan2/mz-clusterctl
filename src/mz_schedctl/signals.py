@@ -139,34 +139,22 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
 
 def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Optional[str]:
     """
-    Get hydration status for a cluster
+    Get hydration status for a cluster using mz_compute_hydration_statuses
 
-    This queries the hydration status of materialized views and indexes
-    that might be using this cluster.
+    This queries the hydration status of compute objects on the cluster.
     """
     logger.debug("Starting _get_hydration_status", extra={"cluster_name": cluster_name})
     with conn.cursor() as cur:
-        # Check if there are any non-hydrated objects on this cluster
         sql = """
             SELECT 
                 COUNT(*) as total_objects,
-                COUNT(*) FILTER (WHERE hydrated) as hydrated_objects
-            FROM mz_internal.mz_hydration_status h
-            JOIN mz_indexes i ON h.object_id = i.id
-            JOIN mz_clusters c ON i.cluster_id = c.id
-            WHERE c.name = %s
-            
-            UNION ALL
-            
-            SELECT 
-                COUNT(*) as total_objects,
-                COUNT(*) FILTER (WHERE hydrated) as hydrated_objects  
-            FROM mz_internal.mz_hydration_status h
-            JOIN mz_materialized_views mv ON h.object_id = mv.id
-            JOIN mz_clusters c ON mv.cluster_id = c.id
+                COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
+            FROM mz_internal.mz_compute_hydration_statuses h
+            JOIN mz_cluster_replicas cr ON h.replica_id = cr.id
+            JOIN mz_clusters c ON cr.cluster_id = c.id
             WHERE c.name = %s
         """
-        params = (cluster_name, cluster_name)
+        params = (cluster_name,)
         logger.debug(
             "Executing SQL",
             extra={
@@ -185,10 +173,16 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
             )
             raise
 
-        results = cur.fetchall()
+        result = cur.fetchone()
 
-        total_objects = sum(r["total_objects"] for r in results)
-        hydrated_objects = sum(r["hydrated_objects"] for r in results)
+        if not result:
+            logger.debug(
+                "No hydration status found", extra={"cluster_name": cluster_name}
+            )
+            return "no_objects"
+
+        total_objects = result["total_objects"]
+        hydrated_objects = result["hydrated_objects"]
 
         logger.debug(
             "Hydration status calculated",

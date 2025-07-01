@@ -79,7 +79,7 @@ class IdleSuspendStrategy(Strategy):
             if signals.seconds_since_activity is None:
                 # No activity recorded - could mean cluster has never been used
                 # or activity tracking isn't working. Be conservative and don't suspend.
-                logger.debug(
+                logger.info(
                     "No activity data available, not suspending",
                     extra={"cluster_id": signals.cluster_id},
                 )

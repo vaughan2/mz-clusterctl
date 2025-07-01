@@ -44,17 +44,6 @@ def get_cluster_signals(
     # Get hydration status
     signals.hydration_status = _get_hydration_status(conn, cluster_name)
 
-    logger.debug(
-        "Retrieved signals for cluster",
-        extra={
-            "cluster_id": str(cluster_id),
-            "cluster_name": cluster_name,
-            "current_replicas": signals.current_replicas,
-            "last_activity_ts": signals.last_activity_ts,
-            "hydration_status": signals.hydration_status,
-        },
-    )
-
     return signals
 
 

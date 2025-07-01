@@ -50,6 +50,14 @@ class Action:
 
 
 @dataclass(frozen=True)
+class ReplicaInfo:
+    """Information about a cluster replica"""
+
+    name: str
+    size: str
+
+
+@dataclass(frozen=True)
 class ClusterInfo:
     """Information about a cluster from SHOW CLUSTERS"""
 

@@ -13,7 +13,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from .log import get_logger
-from .models import ClusterInfo, StrategyConfig, StrategyState
+from .models import ClusterInfo, ReplicaInfo, StrategyConfig, StrategyState
 
 logger = get_logger(__name__)
 
@@ -135,7 +135,7 @@ class Database:
                         continue
 
                     # Get replicas for this cluster using catalog query instead of SHOW
-                    sql = "SELECT name FROM mz_catalog.mz_cluster_replicas WHERE cluster_id = %s"
+                    sql = "SELECT name, size FROM mz_catalog.mz_cluster_replicas WHERE cluster_id = %s"
                     params = (cluster.id,)
                     logger.debug(
                         "Executing SQL",
@@ -147,14 +147,17 @@ class Database:
                     )
                     try:
                         cur.execute(sql, params)
-                        replica_names = [
-                            replica_row["name"] for replica_row in cur.fetchall()
+                        replica_infos = [
+                            ReplicaInfo(
+                                name=replica_row["name"], size=replica_row["size"]
+                            )
+                            for replica_row in cur.fetchall()
                         ]
                         # ClusterInfo is frozen, so we need to create a new instance
                         cluster = ClusterInfo(
                             id=cluster.id,
                             name=cluster.name,
-                            replicas=tuple(replica_names),
+                            replicas=tuple(replica_infos),
                             managed=cluster.managed,
                         )
                     except Exception as e:

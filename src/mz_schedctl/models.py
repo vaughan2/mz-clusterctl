@@ -141,7 +141,7 @@ class Signals:
 
     cluster_id: str
     last_activity_ts: Optional[datetime] = None
-    hydration_status: Optional[str] = None
+    hydration_status: Dict[str, bool] = field(default_factory=dict)
 
     @property
     def seconds_since_activity(self) -> Optional[float]:
@@ -152,5 +152,9 @@ class Signals:
 
     @property
     def is_hydrated(self) -> bool:
-        """Whether the cluster is fully hydrated"""
-        return self.hydration_status == "hydrated"
+        """Whether the cluster is fully hydrated (all replicas are hydrated)"""
+        return all(self.hydration_status.values()) if self.hydration_status else False
+
+    def is_replica_hydrated(self, replica_name: str) -> bool:
+        """Whether a specific replica is hydrated"""
+        return self.hydration_status.get(replica_name, False)

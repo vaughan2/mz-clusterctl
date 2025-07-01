@@ -5,7 +5,7 @@ Functions to query activity and hydration status from Materialize system tables.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 import psycopg
 
@@ -34,7 +34,7 @@ def get_cluster_signals(
     # Get last activity timestamp
     signals.last_activity_ts = _get_last_activity(conn, cluster_id)
 
-    # Get hydration status
+    # Get hydration status per replica
     signals.hydration_status = _get_hydration_status(conn, cluster_name)
 
     return signals
@@ -86,21 +86,28 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
             raise
 
 
-def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Optional[str]:
+def _get_hydration_status(
+    conn: psycopg.Connection, cluster_name: str
+) -> Dict[str, bool]:
     """
-    Get hydration status for a cluster using mz_compute_hydration_statuses
+    Get hydration status per replica for a cluster using mz_compute_hydration_statuses
 
-    This queries the hydration status of compute objects on the cluster.
+    This queries the hydration status of compute objects on each replica in the cluster.
+
+    Returns:
+        Dict mapping replica names to their hydration status (True if hydrated, False otherwise)
     """
     with conn.cursor() as cur:
         sql = """
             SELECT 
+                cr.name as replica_name,
                 COUNT(*) as total_objects,
                 COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
             FROM mz_internal.mz_compute_hydration_statuses h
             JOIN mz_cluster_replicas cr ON h.replica_id = cr.id
             JOIN mz_clusters c ON cr.cluster_id = c.id
             WHERE c.name = %s
+            GROUP BY cr.name
         """
         params = (cluster_name,)
         logger.trace(
@@ -121,34 +128,27 @@ def _get_hydration_status(conn: psycopg.Connection, cluster_name: str) -> Option
             )
             raise
 
-        result = cur.fetchone()
+        results = cur.fetchall()
+        hydration_status = {}
 
-        if not result:
-            logger.debug(
-                "No hydration status found", extra={"cluster_name": cluster_name}
-            )
-            return "no_objects"
+        for result in results:
+            replica_name = result["replica_name"]
+            total_objects = result["total_objects"]
+            hydrated_objects = result["hydrated_objects"]
 
-        total_objects = result["total_objects"]
-        hydrated_objects = result["hydrated_objects"]
+            # A replica is considered hydrated if all its objects are hydrated
+            is_hydrated = total_objects > 0 and hydrated_objects == total_objects
+            hydration_status[replica_name] = is_hydrated
 
         logger.trace(
-            "Hydration status calculated",
+            "Per-replica hydration status calculated",
             extra={
                 "cluster_name": cluster_name,
-                "total_objects": total_objects,
-                "hydrated_objects": hydrated_objects,
+                "hydration_status": hydration_status,
             },
         )
 
-        if total_objects == 0:
-            return "no_objects"
-        elif hydrated_objects == total_objects:
-            return "hydrated"
-        elif hydrated_objects == 0:
-            return "not_hydrated"
-        else:
-            return "partially_hydrated"
+        return hydration_status
 
 
 def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:

@@ -114,7 +114,11 @@ class Database:
                     cluster = ClusterInfo.from_db_row(row)
                     logger.debug(
                         "Created ClusterInfo",
-                        extra={"cluster_id": cluster.id, "cluster_name": cluster.name, "replicas": cluster.replicas},
+                        extra={
+                            "cluster_id": cluster.id,
+                            "cluster_name": cluster.name,
+                            "replicas": cluster.replicas,
+                        },
                     )
 
                     # Apply name filter if provided

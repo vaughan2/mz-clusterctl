@@ -70,7 +70,7 @@ def setup_logging(verbose: int = 0):
             structlog.processors.StackInfoRenderer(),
             structlog.dev.set_exc_info,
             structlog.processors.TimeStamper(fmt="ISO"),
-            structlog.dev.ConsoleRenderer()
+            structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
         logger_factory=structlog.WriteLoggerFactory(),

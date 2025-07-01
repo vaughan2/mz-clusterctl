@@ -5,7 +5,7 @@
 | Item                | Decision                                                                 |
 | ------------------- | ------------------------------------------------------------------------ |
 | Execution model     | **Stateless CLI**; invoked on‑demand (human or cron)                     |
-| Target env.         | Local workstation first; later k8s CronJob                               |
+| Target env.         | Local workstation first; later k8s or CronJob                            |
 | Materialize version | Version‑locked to the current cluster                                    |
 | Concurrency         | Assume **single instance**; no leader‑election                           |
 | Signals in v0       | *Recent activity*, *hydration status*, static *strategy config*          |

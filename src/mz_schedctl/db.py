@@ -4,6 +4,7 @@ Database connection and helper functions for mz-schedctl
 Provides PostgreSQL connection pool and database schema management.
 """
 
+import json
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional
 from uuid import UUID, uuid4
@@ -276,7 +277,7 @@ class Database:
                     (cluster_id, state_version, payload, updated_at)
                     VALUES (%s, %s, %s, now())
                 """
-                params = (state.cluster_id, state.state_version, state.payload)
+                params = (state.cluster_id, state.state_version, json.dumps(state.payload))
                 logger.debug(
                     "Executing SQL",
                     extra={
@@ -325,7 +326,7 @@ class Database:
                     action_id,
                     cluster_id,
                     action_sql,
-                    decision_ctx,
+                    json.dumps(decision_ctx),
                     executed,
                     error_message,
                 )

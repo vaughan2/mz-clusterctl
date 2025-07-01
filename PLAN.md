@@ -18,29 +18,29 @@
 ```sql
 -- 1️⃣ User‑authored strategy definitions (source of truth)
 CREATE TABLE IF NOT EXISTS mz_cluster_strategies (
-    cluster_id    uuid PRIMARY KEY,
-    strategy_type text            NOT NULL,          -- e.g. 'burst', 'idle_suspend'
-    config        jsonb           NOT NULL,          -- raw user text parsed to JSON
-    updated_at    timestamptz     DEFAULT now()
+    cluster_id    TEXT            NOT NULL,
+    strategy_type TEXT            NOT NULL,
+    config        JSONB           NOT NULL,
+    updated_at    TIMESTAMPTZ     DEFAULT now()
 );
 
 -- 2️⃣ Controller internal state (one row per cluster/strategy)
 CREATE TABLE IF NOT EXISTS mz_cluster_strategy_state (
-    cluster_id    uuid PRIMARY KEY,
-    state_version int             NOT NULL,
-    payload       jsonb           NOT NULL,          -- serialized Python dataclass
-    updated_at    timestamptz     DEFAULT now()
+    cluster_id    TEXT            NOT NULL,
+    state_version INT             NOT NULL,
+    payload       JSONB           NOT NULL,          -- serialized Python dataclass
+    updated_at    TIMESTAMPTZ     DEFAULT now()
 );
 
 -- 3️⃣ Action log / audit trail
 CREATE TABLE IF NOT EXISTS mz_cluster_strategy_actions (
-    action_id     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    cluster_id    uuid,
-    action_sql    text,                              -- full ALTER/CREATE/DROP command
-    decision_ctx  jsonb,                             -- inputs & deltas
-    executed      bool,
-    error_message text,
-    created_at    timestamptz DEFAULT now()
+    action_id     TEXT            NOT NULL,
+    cluster_id    TEXT,
+    action_sql    TEXT,
+    decision_ctx  JSONB,
+    executed      BOOL,
+    error_message TEXT,
+    created_at    TIMESTAMPTZ     DEFAULT now()
 );
 ```
 

@@ -22,6 +22,11 @@ uv pip install -e .
 
 # Run with Python directly
 uv run python -m mz_schedctl
+
+# Formatting and linting with ruff
+uv run ruff format         # Format code
+uv run ruff check          # Lint code
+uv run ruff check --fix    # Fix auto-fixable lint issues
 ```
 
 ## Architecture

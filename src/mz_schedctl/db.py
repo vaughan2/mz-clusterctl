@@ -239,6 +239,8 @@ class Database:
                     updated_at=row["updated_at"],
                 )
 
+    # For now, we're not upserting but only appending. Helps with debugging
+    # state transitions.
     def upsert_strategy_state(self, state: StrategyState):
         """Insert or update strategy state"""
         logger.debug(

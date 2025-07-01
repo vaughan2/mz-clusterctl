@@ -196,7 +196,7 @@ class Engine:
                         "strategy_type": config.strategy_type,
                     },
                 )
-                actions = strategy.decide(
+                actions, new_state = strategy.decide(
                     current_state, config.config, signals, cluster
                 )
                 actions_by_cluster[cluster] = actions
@@ -208,12 +208,9 @@ class Engine:
                     },
                 )
 
-                # 5. Persist state (if not dry run and actions were generated)
+                # 5. Persist state (if not dry run)
                 if not dry_run:
                     logger.debug("Persisting state", extra={"cluster_id": cluster.id})
-                    new_state = strategy.next_state(
-                        current_state, config.config, signals, cluster, actions
-                    )
                     # Populate cluster name in state payload
                     new_state.payload["cluster_name"] = cluster.name
                     self.db.upsert_strategy_state(new_state)

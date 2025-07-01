@@ -5,7 +5,7 @@ Auto-scaling strategy that adds replicas when activity is high and removes them 
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .base import Strategy
 from ..log import get_logger
@@ -50,7 +50,7 @@ class BurstStrategy(Strategy):
         config: Dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> List[Action]:
+    ) -> Tuple[List[Action], StrategyState]:
         """Make burst scaling decisions"""
         self.validate_config(config)
 
@@ -71,7 +71,7 @@ class BurstStrategy(Strategy):
                         - (now - last_decision).total_seconds(),
                     },
                 )
-                return actions
+                return actions, current_state
 
         # Check for idle shutdown
         idle_after_s = config["idle_after_s"]
@@ -129,31 +129,19 @@ class BurstStrategy(Strategy):
                     },
                 )
 
-        return actions
-
-    def next_state(
-        self,
-        current_state: StrategyState,
-        config: Dict[str, Any],
-        signals: Signals,
-        cluster_info: ClusterInfo,
-        actions_taken: List[Action],
-    ) -> StrategyState:
-        """Compute next state after actions"""
+        # Compute next state
         new_payload = current_state.payload.copy()
 
         # Update last decision timestamp if any actions were taken
-        if actions_taken:
+        if actions:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
         # Track replica changes
         replicas_added = sum(
-            action.expected_state_delta.get("replicas_added", 0)
-            for action in actions_taken
+            action.expected_state_delta.get("replicas_added", 0) for action in actions
         )
         replicas_removed = sum(
-            action.expected_state_delta.get("replicas_removed", 0)
-            for action in actions_taken
+            action.expected_state_delta.get("replicas_removed", 0) for action in actions
         )
 
         if replicas_added > 0 or replicas_removed > 0:
@@ -163,12 +151,14 @@ class BurstStrategy(Strategy):
                 "replicas_removed": replicas_removed,
             }
 
-        return StrategyState(
+        next_state = StrategyState(
             cluster_id=current_state.cluster_id,
             strategy_type=current_state.strategy_type,
             state_version=self.CURRENT_STATE_VERSION,
             payload=new_payload,
         )
+
+        return actions, next_state
 
     @classmethod
     def initial_state(cls, cluster_id, strategy_type: str) -> StrategyState:

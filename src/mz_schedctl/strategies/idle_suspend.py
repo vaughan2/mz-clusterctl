@@ -5,7 +5,7 @@ Simple strategy that suspends cluster replicas after a period of inactivity.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .base import Strategy
 from ..log import get_logger
@@ -45,7 +45,7 @@ class IdleSuspendStrategy(Strategy):
         config: Dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> List[Action]:
+    ) -> Tuple[List[Action], StrategyState]:
         """Make idle suspend decisions"""
         self.validate_config(config)
 
@@ -67,7 +67,7 @@ class IdleSuspendStrategy(Strategy):
                             - (now - last_decision).total_seconds(),
                         },
                     )
-                    return actions
+                    return actions, current_state
 
         # Check if cluster is idle and has replicas to suspend
         idle_after_s = config["idle_after_s"]
@@ -83,7 +83,7 @@ class IdleSuspendStrategy(Strategy):
                     "No activity data available, not suspending",
                     extra={"cluster_id": signals.cluster_id},
                 )
-                return actions
+                return actions, current_state
 
             if signals.seconds_since_activity > idle_after_s:
                 should_suspend = True
@@ -109,32 +109,22 @@ class IdleSuspendStrategy(Strategy):
                     },
                 )
 
-        return actions
-
-    def next_state(
-        self,
-        current_state: StrategyState,
-        config: Dict[str, Any],
-        signals: Signals,
-        cluster_info: ClusterInfo,
-        actions_taken: List[Action],
-    ) -> StrategyState:
-        """Compute next state after actions"""
+        # Compute next state
         new_payload = current_state.payload.copy()
 
         # Update last decision timestamp if any actions were taken
-        if actions_taken:
+        if actions:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
             # Record suspend event
             replicas_removed = sum(
                 action.expected_state_delta.get("replicas_removed", 0)
-                for action in actions_taken
+                for action in actions
             )
             if replicas_removed > 0:
                 # Store detailed information about each suspended replica
                 suspended_replicas = []
-                for action in actions_taken:
+                for action in actions:
                     if action.expected_state_delta.get("replicas_removed", 0) > 0:
                         # Extract replica name from DROP statement
                         # Format: "DROP CLUSTER REPLICA cluster_name.replica_name"
@@ -158,16 +148,18 @@ class IdleSuspendStrategy(Strategy):
                 new_payload["last_suspend"] = {
                     "timestamp": datetime.utcnow().isoformat(),
                     "replicas_removed": replicas_removed,
-                    "reason": actions_taken[0].reason if actions_taken else "unknown",
+                    "reason": actions[0].reason if actions else "unknown",
                     "suspended_replicas": suspended_replicas,
                 }
 
-        return StrategyState(
+        next_state = StrategyState(
             cluster_id=current_state.cluster_id,
             strategy_type=current_state.strategy_type,
             state_version=self.CURRENT_STATE_VERSION,
             payload=new_payload,
         )
+
+        return actions, next_state
 
     @classmethod
     def initial_state(cls, cluster_id, strategy_type: str) -> StrategyState:

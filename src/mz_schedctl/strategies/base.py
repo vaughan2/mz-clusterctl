@@ -5,7 +5,7 @@ Defines the Strategy abstract base class that all scaling strategies must implem
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from ..models import Action, ClusterInfo, Signals, StrategyState
 
@@ -28,7 +28,7 @@ class Strategy(ABC):
         config: Dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> List[Action]:
+    ) -> Tuple[List[Action], StrategyState]:
         """
         Make scaling decisions based on current state and signals
 
@@ -39,31 +39,7 @@ class Strategy(ABC):
             cluster_info: Information about the cluster including current replicas
 
         Returns:
-            List of actions to be executed (may be empty)
-        """
-        pass
-
-    @abstractmethod
-    def next_state(
-        self,
-        current_state: StrategyState,
-        config: Dict[str, Any],
-        signals: Signals,
-        cluster_info: ClusterInfo,
-        actions_taken: List[Action],
-    ) -> StrategyState:
-        """
-        Compute the next state after actions have been taken
-
-        Args:
-            current_state: The state before actions were taken
-            config: Strategy configuration
-            signals: Activity and hydration signals
-            cluster_info: Information about the cluster including current replicas
-            actions_taken: List of actions that were executed
-
-        Returns:
-            New strategy state to be persisted
+            Tuple of (actions to be executed, new strategy state to be persisted)
         """
         pass
 

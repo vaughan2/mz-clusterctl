@@ -19,7 +19,7 @@
 -- 1️⃣ User‑authored strategy definitions (source of truth)
 CREATE TABLE IF NOT EXISTS mz_cluster_strategies (
     cluster_id    uuid PRIMARY KEY,
-    strategy_type text            NOT NULL,          -- e.g. 'burst', 'idle_shutdown'
+    strategy_type text            NOT NULL,          -- e.g. 'burst', 'idle_suspend'
     config        jsonb           NOT NULL,          -- raw user text parsed to JSON
     updated_at    timestamptz     DEFAULT now()
 );
@@ -69,7 +69,7 @@ src/mz_schedctl/
  ├─ strategies/
  │    ├─ base.py         # Strategy interface: decide(curr_state, signals) -> Action[]
  │    ├─ burst.py        # reference implementation
- │    └─ idle_shutdown.py
+ │    └─ idle_suspend.py
  ├─ engine.py            # orchestration: load cfg → run strategies → merge → render SQL
  ├─ executor.py          # optional execution (apply)
  └─ log.py               # structured logging → stdout + mz_cluster_strategy_actions

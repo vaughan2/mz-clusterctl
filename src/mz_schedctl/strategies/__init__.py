@@ -1,7 +1,7 @@
 from .burst import BurstStrategy
-from .idle_shutdown import IdleShutdownStrategy
+from .idle_suspend import IdleSuspendStrategy
 
 STRATEGY_REGISTRY = {
     "burst": BurstStrategy,
-    "idle_shutdown": IdleShutdownStrategy,
+    "idle_suspend": IdleSuspendStrategy,
 }

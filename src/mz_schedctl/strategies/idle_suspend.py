@@ -1,7 +1,7 @@
 """
-Idle shutdown strategy for mz-schedctl
+Idle suspend strategy for mz-schedctl
 
-Simple strategy that shuts down cluster replicas after a period of inactivity.
+Simple strategy that suspends cluster replicas after a period of inactivity.
 """
 
 from datetime import datetime
@@ -14,19 +14,19 @@ from ..models import Action, Signals, StrategyState
 logger = get_logger(__name__)
 
 
-class IdleShutdownStrategy(Strategy):
+class IdleSuspendStrategy(Strategy):
     """
-    Idle shutdown strategy implementation
+    Idle suspend strategy implementation
 
     This strategy:
     1. Monitors cluster activity
-    2. Shuts down all replicas after a configured idle period
+    2. Suspends all replicas after a configured idle period
     3. Does not automatically scale back up (manual intervention required)
-    4. Respects cooldown periods to avoid repeated shutdown attempts
+    4. Respects cooldown periods to avoid repeated suspend attempts
     """
 
     def validate_config(self, config: Dict[str, Any]) -> None:
-        """Validate idle shutdown strategy configuration"""
+        """Validate idle suspend strategy configuration"""
         required_keys = ["idle_after_s"]
         for key in required_keys:
             if key not in config:
@@ -42,7 +42,7 @@ class IdleShutdownStrategy(Strategy):
     def decide(
         self, current_state: StrategyState, config: Dict[str, Any], signals: Signals
     ) -> List[Action]:
-        """Make idle shutdown decisions"""
+        """Make idle suspend decisions"""
         self.validate_config(config)
 
         actions = []
@@ -65,26 +65,26 @@ class IdleShutdownStrategy(Strategy):
                     )
                     return actions
 
-        # Check if cluster is idle and has replicas to shut down
+        # Check if cluster is idle and has replicas to suspend
         idle_after_s = config["idle_after_s"]
         if signals.current_replicas > 0:
-            should_shutdown = False
+            should_suspend = False
             reason = ""
 
             if signals.seconds_since_activity is None:
                 # No activity recorded - could mean cluster has never been used
-                # or activity tracking isn't working. Be conservative and don't shut down.
+                # or activity tracking isn't working. Be conservative and don't suspend.
                 logger.debug(
-                    "No activity data available, not shutting down",
+                    "No activity data available, not suspending",
                     extra={"cluster_id": str(signals.cluster_id)},
                 )
                 return actions
 
             if signals.seconds_since_activity > idle_after_s:
-                should_shutdown = True
+                should_suspend = True
                 reason = f"Idle for {signals.seconds_since_activity:.0f}s (threshold: {idle_after_s}s)"
 
-            if should_shutdown:
+            if should_suspend:
                 # Get cluster name for DROP commands
                 cluster_name = current_state.payload.get("cluster_name", "unknown")
 
@@ -102,7 +102,7 @@ class IdleShutdownStrategy(Strategy):
                     )
 
                 logger.info(
-                    "Shutting down idle cluster",
+                    "Suspending idle cluster",
                     extra={
                         "cluster_id": str(signals.cluster_id),
                         "idle_seconds": signals.seconds_since_activity,
@@ -127,13 +127,13 @@ class IdleShutdownStrategy(Strategy):
         if actions_taken:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
-            # Record shutdown event
+            # Record suspend event
             replicas_removed = sum(
                 action.expected_state_delta.get("replicas_removed", 0)
                 for action in actions_taken
             )
             if replicas_removed > 0:
-                new_payload["last_shutdown"] = {
+                new_payload["last_suspend"] = {
                     "timestamp": datetime.utcnow().isoformat(),
                     "replicas_removed": replicas_removed,
                     "reason": actions_taken[0].reason if actions_taken else "unknown",
@@ -148,11 +148,11 @@ class IdleShutdownStrategy(Strategy):
 
     @classmethod
     def initial_state(cls, cluster_id, strategy_type: str) -> StrategyState:
-        """Create initial state for idle shutdown strategy"""
+        """Create initial state for idle suspend strategy"""
         state = super().initial_state(cluster_id, strategy_type)
         state.payload = {
             "last_decision_ts": None,
-            "last_shutdown": None,
+            "last_suspend": None,
             "cluster_name": None,  # Will be populated by engine
         }
         return state

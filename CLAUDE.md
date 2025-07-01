@@ -34,7 +34,7 @@ uv run ruff check --fix    # Fix auto-fixable lint issues
 The project follows a stateless CLI execution model with the following key components:
 
 - **Database Integration**: Uses PostgreSQL connection to Materialize via `DATABASE_URL` environment variable
-- **Strategy System**: Pluggable strategy classes for different scaling behaviors (burst, idle_shutdown, etc.)
+- **Strategy System**: Pluggable strategy classes for different scaling behaviors (burst, idle_suspend, etc.)
 - **State Management**: Persistent state stored in Materialize tables (`mz_cluster_strategies`, `mz_cluster_strategy_state`, `mz_cluster_strategy_actions`)
 - **CLI Interface**: Three main commands - `plan` (dry-run), `apply` (execute), and `wipe-state`
 
@@ -49,7 +49,7 @@ mz_schedctl/
 ├─ strategies/
 │   ├─ base.py          # Strategy interface: decide(state, signals) -> Action[]
 │   ├─ burst.py         # Auto-scaling strategy implementation
-│   └─ idle_shutdown.py # Idle shutdown strategy implementation
+│   └─ idle_suspend.py  # Idle suspend strategy implementation
 ├─ engine.py            # Orchestration: load config → run strategies → merge → render SQL
 ├─ executor.py          # SQL execution for apply mode
 └─ log.py               # Structured logging to stdout and audit tables

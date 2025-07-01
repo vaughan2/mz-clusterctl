@@ -208,7 +208,7 @@ class Database:
         """Get strategy state for a cluster"""
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                sql = "SELECT * FROM mz_cluster_strategy_state WHERE cluster_id = %s"
+                sql = "SELECT * FROM mz_cluster_strategy_state WHERE cluster_id = %s ORDER BY updated_at DESC LIMIT 1"
                 params = (cluster_id,)
                 logger.trace(
                     "Executing SQL",

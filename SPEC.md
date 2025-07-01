@@ -145,25 +145,5 @@ State stored: `{"last_decision_ts": "...", "cooldown_s": 120}`.
 
 1. `uv sync` (installs dependencies and sets up development environment).
 2. `cp .env.example .env` ➜ adjust `DATABASE_URL`.
-3. `uv run mz-schedctl plan --verbose` or `uv run python -m mz_schedctl plan --verbose`.
-4. Verify SQL, then `uv run mz-schedctl apply` or `uv run python -m mz_schedctl apply`.
-
-## 9. Implementation Status
-
-**✅ Completed:**
-* Complete CLI interface with argument parsing and verbosity levels
-* Database connection pooling and schema management
-* Full strategy system with abstract base class and registry
-* Two working strategies: `burst` (auto-scaling) and `idle_suspend` (suspend/resume)
-* Signal collection from Materialize system tables (activity, hydration, metrics)
-* Action execution engine with comprehensive audit logging
-* Structured logging with multiple verbosity levels
-* State management with versioning and compatibility checks
-* Configuration validation and error handling
-
-**Next Steps:**
-* Add unit tests with local Materialize instance or test-containers
-* Performance optimization for large numbers of clusters
-* Additional scaling strategies (scheduled scaling, metric-based scaling)
-* Kubernetes CronJob and GitHub Action deployment templates
-* Monitoring and alerting integration (Prometheus metrics)
+3. `uv run mz-schedctl plan --verbose`
+4. Verify SQL, then `uv run mz-schedctl apply`

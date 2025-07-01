@@ -41,17 +41,17 @@ def main():
     )
 
     # plan command
-    plan_parser = subparsers.add_parser(
+    _ = subparsers.add_parser(
         "plan", parents=[common_parser], help="Read-only dry-run (prints SQL actions)"
     )
 
     # apply command
-    apply_parser = subparsers.add_parser(
+    _ = subparsers.add_parser(
         "apply", parents=[common_parser], help="Execute actions and write audit log"
     )
 
     # wipe-state command
-    wipe_parser = subparsers.add_parser(
+    _ = subparsers.add_parser(
         "wipe-state",
         parents=[common_parser],
         help="Clear mz_cluster_strategy_state table",

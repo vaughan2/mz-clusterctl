@@ -5,7 +5,7 @@ Contains dataclasses for strategy state, replica specifications, and actions.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID
 import json
@@ -142,7 +142,7 @@ class Signals:
         """Seconds since last activity, or None if no activity recorded"""
         if self.last_activity_ts is None:
             return None
-        return (datetime.utcnow() - self.last_activity_ts).total_seconds()
+        return (datetime.now(timezone.utc) - self.last_activity_ts).total_seconds()
 
     @property
     def is_hydrated(self) -> bool:

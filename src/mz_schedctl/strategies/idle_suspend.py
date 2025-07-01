@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from .base import Strategy
 from ..log import get_logger
-from ..models import Action, Signals, StrategyState
+from ..models import Action, ClusterInfo, Signals, StrategyState
 
 logger = get_logger(__name__)
 
@@ -40,7 +40,11 @@ class IdleSuspendStrategy(Strategy):
             raise ValueError("cooldown_s must be >= 0")
 
     def decide(
-        self, current_state: StrategyState, config: Dict[str, Any], signals: Signals
+        self,
+        current_state: StrategyState,
+        config: Dict[str, Any],
+        signals: Signals,
+        cluster_info: ClusterInfo,
     ) -> List[Action]:
         """Make idle suspend decisions"""
         self.validate_config(config)
@@ -67,7 +71,8 @@ class IdleSuspendStrategy(Strategy):
 
         # Check if cluster is idle and has replicas to suspend
         idle_after_s = config["idle_after_s"]
-        if signals.current_replicas > 0:
+        current_replicas = len(cluster_info.replicas)
+        if current_replicas > 0:
             should_suspend = False
             reason = ""
 
@@ -85,17 +90,10 @@ class IdleSuspendStrategy(Strategy):
                 reason = f"Idle for {signals.seconds_since_activity:.0f}s (threshold: {idle_after_s}s)"
 
             if should_suspend:
-                # Get cluster name for DROP commands
-                cluster_name = current_state.payload.get("cluster_name", "unknown")
-
-                # Create actions to drop all replicas
-                # Note: In practice, you'd need to query the actual replica names
-                # This is simplified for the skeleton implementation
-                for i in range(signals.current_replicas):
-                    replica_name = f"{cluster_name}-replica-{i}"
+                for replica in cluster_info.replicas:
                     actions.append(
                         Action(
-                            sql=f"DROP CLUSTER REPLICA {cluster_name}.{replica_name}",
+                            sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{replica.name}",
                             reason=reason,
                             expected_state_delta={"replicas_removed": 1},
                         )
@@ -107,7 +105,7 @@ class IdleSuspendStrategy(Strategy):
                         "cluster_id": str(signals.cluster_id),
                         "idle_seconds": signals.seconds_since_activity,
                         "threshold": idle_after_s,
-                        "replicas_to_remove": signals.current_replicas,
+                        "replicas_to_remove": current_replicas,
                     },
                 )
 
@@ -118,6 +116,7 @@ class IdleSuspendStrategy(Strategy):
         current_state: StrategyState,
         config: Dict[str, Any],
         signals: Signals,
+        cluster_info: ClusterInfo,
         actions_taken: List[Action],
     ) -> StrategyState:
         """Compute next state after actions"""

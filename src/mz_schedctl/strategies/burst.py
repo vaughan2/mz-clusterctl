@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from .base import Strategy
 from ..log import get_logger
-from ..models import Action, ReplicaSpec, Signals, StrategyState
+from ..models import Action, ClusterInfo, ReplicaSpec, Signals, StrategyState
 
 logger = get_logger(__name__)
 
@@ -45,7 +45,11 @@ class BurstStrategy(Strategy):
             raise ValueError("idle_after_s must be >= 0")
 
     def decide(
-        self, current_state: StrategyState, config: Dict[str, Any], signals: Signals
+        self,
+        current_state: StrategyState,
+        config: Dict[str, Any],
+        signals: Signals,
+        cluster_info: ClusterInfo,
     ) -> List[Action]:
         """Make burst scaling decisions"""
         self.validate_config(config)
@@ -71,18 +75,16 @@ class BurstStrategy(Strategy):
 
         # Check for idle shutdown
         idle_after_s = config["idle_after_s"]
+        current_replicas = len(cluster_info.replicas)
         if (
             signals.seconds_since_activity
             and signals.seconds_since_activity > idle_after_s
         ):
-            if signals.current_replicas > 0:
-                # Scale down to 0 replicas
-                cluster_name = current_state.payload.get("cluster_name", "unknown")
-                for i in range(signals.current_replicas):
-                    replica_name = f"{cluster_name}-replica-{i}"
+            if current_replicas > 0:
+                for replica in cluster_info.replicas:
                     actions.append(
                         Action(
-                            sql=f"DROP CLUSTER REPLICA {cluster_name}.{replica_name}",
+                            sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{replica.name}",
                             reason=f"Idle for {signals.seconds_since_activity:.0f}s (threshold: {idle_after_s}s)",
                             expected_state_delta={"replicas_removed": 1},
                         )
@@ -94,17 +96,16 @@ class BurstStrategy(Strategy):
                         "cluster_id": str(signals.cluster_id),
                         "idle_seconds": signals.seconds_since_activity,
                         "threshold": idle_after_s,
-                        "replicas_to_remove": signals.current_replicas,
+                        "replicas_to_remove": current_replicas,
                     },
                 )
 
         # Check for scale up conditions
-        elif self._should_scale_up(config, signals):
+        elif self._should_scale_up(config, signals, current_replicas):
             max_replicas = config["max_replicas"]
-            if signals.current_replicas < max_replicas:
+            if current_replicas < max_replicas:
                 # Add one replica
-                cluster_name = current_state.payload.get("cluster_name", "unknown")
-                replica_name = f"{cluster_name}-replica-{signals.current_replicas}"
+                replica_name = f"{cluster_info.name}-replica-{current_replicas}"
 
                 # Use default size, can be made configurable
                 replica_size = config.get("replica_size", "xsmall")
@@ -112,8 +113,8 @@ class BurstStrategy(Strategy):
 
                 actions.append(
                     Action(
-                        sql=replica_spec.to_create_sql(cluster_name),
-                        reason=f"Activity detected, scaling up (current: {signals.current_replicas}, max: {max_replicas})",
+                        sql=replica_spec.to_create_sql(cluster_info.name),
+                        reason=f"Activity detected, scaling up (current: {current_replicas}, max: {max_replicas})",
                         expected_state_delta={"replicas_added": 1},
                     )
                 )
@@ -122,7 +123,7 @@ class BurstStrategy(Strategy):
                     "Scaling up cluster",
                     extra={
                         "cluster_id": str(signals.cluster_id),
-                        "current_replicas": signals.current_replicas,
+                        "current_replicas": current_replicas,
                         "max_replicas": max_replicas,
                         "replica_size": replica_size,
                     },
@@ -135,6 +136,7 @@ class BurstStrategy(Strategy):
         current_state: StrategyState,
         config: Dict[str, Any],
         signals: Signals,
+        cluster_info: ClusterInfo,
         actions_taken: List[Action],
     ) -> StrategyState:
         """Compute next state after actions"""
@@ -179,7 +181,9 @@ class BurstStrategy(Strategy):
         }
         return state
 
-    def _should_scale_up(self, config: Dict[str, Any], signals: Signals) -> bool:
+    def _should_scale_up(
+        self, config: Dict[str, Any], signals: Signals, current_replicas: int
+    ) -> bool:
         """
         Determine if we should scale up based on current signals
 
@@ -190,14 +194,14 @@ class BurstStrategy(Strategy):
         - Check for pending hydration work
         """
         # If there's recent activity and we have no replicas, we should scale up
-        if signals.current_replicas == 0 and signals.seconds_since_activity is not None:
+        if current_replicas == 0 and signals.seconds_since_activity is not None:
             scale_up_threshold_ms = config["scale_up_threshold_ms"]
             if signals.seconds_since_activity * 1000 <= scale_up_threshold_ms:
                 return True
 
         # Additional scale-up conditions could be added here
         # For example, checking if cluster is not fully hydrated
-        if not signals.is_hydrated and signals.current_replicas == 0:
+        if not signals.is_hydrated and current_replicas == 0:
             return True
 
         # If we have active queries but no replicas, scale up

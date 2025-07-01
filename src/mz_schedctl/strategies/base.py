@@ -7,7 +7,7 @@ Defines the Strategy abstract base class that all scaling strategies must implem
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
-from ..models import Action, Signals, StrategyState
+from ..models import Action, ClusterInfo, Signals, StrategyState
 
 
 class Strategy(ABC):
@@ -23,7 +23,11 @@ class Strategy(ABC):
 
     @abstractmethod
     def decide(
-        self, current_state: StrategyState, config: Dict[str, Any], signals: Signals
+        self,
+        current_state: StrategyState,
+        config: Dict[str, Any],
+        signals: Signals,
+        cluster_info: ClusterInfo,
     ) -> List[Action]:
         """
         Make scaling decisions based on current state and signals
@@ -32,6 +36,7 @@ class Strategy(ABC):
             current_state: The current state of this strategy for the cluster
             config: Strategy configuration from mz_cluster_strategies table
             signals: Activity and hydration signals for the cluster
+            cluster_info: Information about the cluster including current replicas
 
         Returns:
             List of actions to be executed (may be empty)
@@ -44,6 +49,7 @@ class Strategy(ABC):
         current_state: StrategyState,
         config: Dict[str, Any],
         signals: Signals,
+        cluster_info: ClusterInfo,
         actions_taken: List[Action],
     ) -> StrategyState:
         """
@@ -53,6 +59,7 @@ class Strategy(ABC):
             current_state: The state before actions were taken
             config: Strategy configuration
             signals: Activity and hydration signals
+            cluster_info: Information about the cluster including current replicas
             actions_taken: List of actions that were executed
 
         Returns:

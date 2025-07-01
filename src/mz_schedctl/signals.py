@@ -35,9 +35,6 @@ def get_cluster_signals(
     )
     signals = Signals(cluster_id=cluster_id)
 
-    # Get current replica count
-    signals.current_replicas = _get_replica_count(conn, cluster_name)
-
     # Get last activity timestamp
     signals.last_activity_ts = _get_last_activity(conn, cluster_id)
 
@@ -45,38 +42,6 @@ def get_cluster_signals(
     signals.hydration_status = _get_hydration_status(conn, cluster_name)
 
     return signals
-
-
-def _get_replica_count(conn: psycopg.Connection, cluster_name: str) -> int:
-    """Get current number of replicas for a cluster"""
-    logger.debug("Starting _get_replica_count", extra={"cluster_name": cluster_name})
-    with conn.cursor() as cur:
-        sql = "SELECT COUNT(*) as count FROM mz_cluster_replicas WHERE cluster_id = (SELECT id FROM mz_clusters WHERE name = %s)"
-        params = (cluster_name,)
-        logger.debug(
-            "Executing SQL",
-            extra={
-                "sql": sql,
-                "params": params,
-                "param_types": [type(p).__name__ for p in params],
-            },
-        )
-        try:
-            cur.execute(sql, params)
-            result = cur.fetchone()
-            count = result["count"] if result else 0
-            logger.debug(
-                "Replica count retrieved",
-                extra={"cluster_name": cluster_name, "count": count},
-            )
-            return count
-        except Exception as e:
-            logger.error(
-                "Error executing SQL",
-                extra={"sql": sql, "params": params, "error": str(e)},
-                exc_info=True,
-            )
-            raise
 
 
 def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[datetime]:

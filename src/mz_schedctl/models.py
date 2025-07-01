@@ -143,7 +143,6 @@ class Signals:
     cluster_id: str
     last_activity_ts: Optional[datetime] = None
     hydration_status: Optional[str] = None
-    current_replicas: int = 0
 
     @property
     def seconds_since_activity(self) -> Optional[float]:

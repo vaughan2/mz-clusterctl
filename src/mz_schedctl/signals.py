@@ -29,7 +29,7 @@ def get_cluster_signals(
     Returns:
         Signals object with activity and hydration data
     """
-    logger.debug(
+    logger.trace(
         "Starting get_cluster_signals",
         extra={"cluster_id": cluster_id, "cluster_name": cluster_name},
     )
@@ -163,7 +163,7 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
 
     Returns a dictionary with various cluster metrics.
     """
-    logger.debug("Starting get_cluster_metrics", extra={"cluster_name": cluster_name})
+    logger.trace("Starting get_cluster_metrics", extra={"cluster_name": cluster_name})
     metrics = {}
 
     with conn.cursor() as cur:

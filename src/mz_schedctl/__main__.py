@@ -32,7 +32,11 @@ def main():
         "--cluster", type=str, help="Limit to clusters matching this name regex"
     )
     common_parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        help="Enable verbose logging (-v for debug, -vv for trace)",
     )
     common_parser.add_argument(
         "--postgres-url",

@@ -47,9 +47,6 @@ class Engine:
 
         with self.db:
             self.db.ensure_tables()
-            logger.debug(
-                "Database tables ensured, starting decision cycle for plan mode"
-            )
             actions_by_cluster = self._run_decision_cycle(dry_run=True)
 
             if not any(actions_by_cluster.values()):
@@ -79,9 +76,6 @@ class Engine:
 
         with self.db:
             self.db.ensure_tables()
-            logger.debug(
-                "Database tables ensured, starting decision cycle for apply mode"
-            )
             actions_by_cluster = self._run_decision_cycle(dry_run=False)
 
             total_actions = sum(len(actions) for actions in actions_by_cluster.values())
@@ -126,7 +120,7 @@ class Engine:
         Returns:
             Dictionary mapping ClusterInfo to list of actions
         """
-        logger.debug(
+        logger.trace(
             "Starting decision cycle",
             extra={"dry_run": dry_run, "cluster_filter": self.cluster_filter},
         )

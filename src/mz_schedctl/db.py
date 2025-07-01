@@ -91,15 +91,15 @@ class Database:
                     cur.execute(sql)
                     conn.commit()
 
-        logger.info("Database tables ensured")
+        logger.debug("Database tables ensured")
 
     def get_clusters(self, name_filter: Optional[str] = None) -> List[ClusterInfo]:
         """Get cluster information from mz_catalog.mz_clusters"""
-        logger.debug("Starting get_clusters", extra={"name_filter": name_filter})
+        logger.trace("Starting get_clusters", extra={"name_filter": name_filter})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 sql = "SELECT id, name FROM mz_catalog.mz_clusters"
-                logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+                logger.trace("Executing SQL", extra={"sql": sql, "params": None})
                 try:
                     cur.execute(sql)
                 except Exception as e:
@@ -138,7 +138,7 @@ class Database:
                     # Get replicas for this cluster using catalog query instead of SHOW
                     sql = "SELECT name, size FROM mz_catalog.mz_cluster_replicas WHERE cluster_id = %s"
                     params = (cluster.id,)
-                    logger.debug(
+                    logger.trace(
                         "Executing SQL",
                         extra={
                             "sql": sql,
@@ -186,7 +186,7 @@ class Database:
                 if cluster_id:
                     sql = "SELECT * FROM mz_cluster_strategies WHERE cluster_id = %s"
                     params = (cluster_id,)
-                    logger.debug(
+                    logger.trace(
                         "Executing SQL",
                         extra={
                             "sql": sql,
@@ -205,7 +205,7 @@ class Database:
                         raise
                 else:
                     sql = "SELECT * FROM mz_cluster_strategies"
-                    logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+                    logger.trace("Executing SQL", extra={"sql": sql, "params": None})
                     try:
                         cur.execute(sql)
                     except Exception as e:
@@ -231,7 +231,7 @@ class Database:
             with conn.cursor() as cur:
                 sql = "SELECT * FROM mz_cluster_strategy_state WHERE cluster_id = %s"
                 params = (cluster_id,)
-                logger.debug(
+                logger.trace(
                     "Executing SQL",
                     extra={
                         "sql": sql,
@@ -277,8 +277,12 @@ class Database:
                     (cluster_id, state_version, payload, updated_at)
                     VALUES (%s, %s, %s, now())
                 """
-                params = (state.cluster_id, state.state_version, json.dumps(state.payload))
-                logger.debug(
+                params = (
+                    state.cluster_id,
+                    state.state_version,
+                    json.dumps(state.payload),
+                )
+                logger.trace(
                     "Executing SQL",
                     extra={
                         "sql": sql,
@@ -330,7 +334,7 @@ class Database:
                     executed,
                     error_message,
                 )
-                logger.debug(
+                logger.trace(
                     "Executing SQL",
                     extra={
                         "sql": sql,
@@ -355,7 +359,7 @@ class Database:
         logger.debug("Starting execute_sql", extra={"sql": sql})
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+                logger.trace("Executing SQL", extra={"sql": sql, "params": None})
                 try:
                     cur.execute(sql)
                     conn.commit()
@@ -382,7 +386,7 @@ class Database:
                 if cluster_id:
                     sql = "DELETE FROM mz_cluster_strategy_state WHERE cluster_id = %s"
                     params = (cluster_id,)
-                    logger.debug(
+                    logger.trace(
                         "Executing SQL",
                         extra={
                             "sql": sql,
@@ -401,7 +405,7 @@ class Database:
                         raise
                 else:
                     sql = "DELETE FROM mz_cluster_strategy_state"
-                    logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+                    logger.trace("Executing SQL", extra={"sql": sql, "params": None})
                     try:
                         cur.execute(sql)
                     except Exception as e:

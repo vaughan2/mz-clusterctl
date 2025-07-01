@@ -132,10 +132,34 @@ class IdleSuspendStrategy(Strategy):
                 for action in actions_taken
             )
             if replicas_removed > 0:
+                # Store detailed information about each suspended replica
+                suspended_replicas = []
+                for action in actions_taken:
+                    if action.expected_state_delta.get("replicas_removed", 0) > 0:
+                        # Extract replica name from DROP statement
+                        # Format: "DROP CLUSTER REPLICA cluster_name.replica_name"
+                        sql_parts = action.sql.split(".")
+                        if len(sql_parts) >= 2:
+                            replica_name = sql_parts[-1]
+                            # Find the replica info from cluster_info to get the size
+                            replica_size = None
+                            for replica in cluster_info.replicas:
+                                if replica.name == replica_name:
+                                    replica_size = replica.size
+                                    break
+
+                            suspended_replicas.append(
+                                {
+                                    "name": replica_name,
+                                    "size": replica_size,
+                                }
+                            )
+
                 new_payload["last_suspend"] = {
                     "timestamp": datetime.utcnow().isoformat(),
                     "replicas_removed": replicas_removed,
                     "reason": actions_taken[0].reason if actions_taken else "unknown",
+                    "suspended_replicas": suspended_replicas,
                 }
 
         return StrategyState(
@@ -151,7 +175,7 @@ class IdleSuspendStrategy(Strategy):
         state = super().initial_state(cluster_id, strategy_type)
         state.payload = {
             "last_decision_ts": None,
-            "last_suspend": None,
+            "last_suspend": None,  # Will contain suspended_replicas list with name/size
             "cluster_name": None,  # Will be populated by engine
         }
         return state

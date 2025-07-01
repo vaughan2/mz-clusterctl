@@ -69,6 +69,7 @@ mz_schedctl/
  ├─ strategies/
  │    ├─ __init__.py     # strategy registry: STRATEGY_REGISTRY dict
  │    ├─ base.py         # Strategy interface: decide(state, signals) -> (Action[], new_state)
+ │    ├─ target_size.py  # aka. 0dt reconfiguration
  │    ├─ burst.py        # auto-scaling strategy with cooldown and idle shutdown
  │    └─ idle_suspend.py # idle cluster suspend/resume strategy
  ├─ engine.py            # orchestration: load config → run strategies → plan/apply → persist
@@ -113,26 +114,24 @@ mz_schedctl/
 
    * Save updated `StrategyState` returned by strategy to `mz_cluster_strategy_state` table.
 
-## 6. Reference Strategy – "Burst"
+## 6. Reference Strategy – "Target Size"
 
 > *Illustrative only; real parameters come from `config` JSON.*
 
-| Config key              | Description                         | Example |
-| ----------------------- | ----------------------------------- | ------- |
-| `max_replicas`          | hard ceiling                        | `3`     |
-| `scale_up_threshold_ms` | inactivity ≤ this ⇒ add one replica | `500`   |
-| `cooldown_s`            | min seconds between decisions       | `120`   |
-| `idle_after_s`          | drop to 0 replicas if idle for N s  | `900`   |
+| Config key      | Description                                    | Example        |
+| --------------- | ---------------------------------------------- | -------------- |
+| `target_size`   | Target replica size (required)                 | `"medium"`     |
+| `replica_name`  | Name for target size replica (optional)       | `"r_medium"`   |
 
-Algorithm sketch (inside `burst.decide`):
+Algorithm sketch (inside `target_size.decide`):
 
-1. If last decision < `cooldown_s` → return [].
-2. Read `signals.last_activity_ts`.
-3. If `now – last_activity > idle_after_s` ⇒ emit `DROP CLUSTER REPLICA ...`.
-4. Else if `workload latency > scale_up_threshold` and replicas < max ⇒ emit `CREATE REPLICA ...`.
-5. Else no action.
+1. Check for existing replicas matching the target size.
+2. If no target size replica exists → emit `CREATE CLUSTER REPLICA ...` with target size.
+3. If target size replica exists and is hydrated + other size replicas exist → emit `DROP CLUSTER REPLICA ...` for non-target replicas.
+4. Track pending replica creation in state to handle async replica creation.
+5. Clear pending state when target replica is confirmed to exist.
 
-State stored: `{"last_decision_ts": "...", "cooldown_s": 120}`.
+State stored: `{"last_decision_ts": "...", "pending_target_replica": {"name": "...", "size": "...", "created_at": "..."}}`.
 
 ## 7. Error Handling & Observability
 

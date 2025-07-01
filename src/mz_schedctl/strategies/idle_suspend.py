@@ -21,7 +21,7 @@ class IdleSuspendStrategy(Strategy):
     This strategy:
     1. Monitors cluster activity
     2. Suspends all replicas after a configured idle period
-    3. Does not automatically scale back up (manual intervention required)
+    3. Automatically recreates replicas when recent activity is detected
     4. Respects cooldown periods to avoid repeated suspend attempts
     """
 
@@ -69,10 +69,59 @@ class IdleSuspendStrategy(Strategy):
                     )
                     return actions, current_state
 
-        # Check if cluster is idle and has replicas to suspend
         idle_after_s = config["idle_after_s"]
         current_replicas = len(cluster_info.replicas)
-        if current_replicas > 0:
+        last_suspend_info = current_state.payload.get("last_suspend")
+
+        logger.debug(
+            "Deciding on suspension or re-creation",
+            extra={
+                "cluster_id": signals.cluster_id,
+                "seconds_since_activity": signals.seconds_since_activity,
+                "threshold": idle_after_s,
+                "last_suspended_info": last_suspend_info,
+            },
+        )
+
+        # Check if we should recreate replicas due to recent activity
+        if current_replicas == 0 and last_suspend_info:
+            # Cluster is currently suspended, check if we should recreate replicas
+            if (
+                signals.seconds_since_activity is not None
+                and signals.seconds_since_activity < idle_after_s
+            ):
+                # Recent activity detected, recreate the suspended replicas
+                suspended_replicas = last_suspend_info.get("suspended_replicas", [])
+
+                for replica_info in suspended_replicas:
+                    replica_name = replica_info["name"]
+                    replica_size = replica_info["size"]
+
+                    if replica_size:  # Only recreate if we have size info
+                        from ..models import ReplicaSpec
+
+                        replica_spec = ReplicaSpec(name=replica_name, size=replica_size)
+                        actions.append(
+                            Action(
+                                sql=replica_spec.to_create_sql(cluster_info.name),
+                                reason=f"Recreating replica due to recent activity ({signals.seconds_since_activity:.0f}s ago)",
+                                expected_state_delta={"replicas_added": 1},
+                            )
+                        )
+
+                if actions:
+                    logger.info(
+                        "Recreating replicas due to recent activity",
+                        extra={
+                            "cluster_id": signals.cluster_id,
+                            "seconds_since_activity": signals.seconds_since_activity,
+                            "threshold": idle_after_s,
+                            "replicas_to_recreate": len(actions),
+                        },
+                    )
+
+        # Check if cluster is idle and has replicas to suspend
+        elif current_replicas > 0:
             should_suspend = False
             reason = ""
 
@@ -151,6 +200,14 @@ class IdleSuspendStrategy(Strategy):
                     "reason": actions[0].reason if actions else "unknown",
                     "suspended_replicas": suspended_replicas,
                 }
+
+            # Clear suspend info when replicas are recreated
+            replicas_added = sum(
+                action.expected_state_delta.get("replicas_added", 0)
+                for action in actions
+            )
+            if replicas_added > 0:
+                new_payload["last_suspend"] = None
 
         next_state = StrategyState(
             cluster_id=current_state.cluster_id,

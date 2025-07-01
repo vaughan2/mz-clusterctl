@@ -43,7 +43,6 @@ class Engine:
 
     def plan(self):
         """Execute plan mode - dry run that shows what actions would be taken"""
-        logger.info("Starting plan mode")
 
         with self.db:
             self.db.ensure_tables()
@@ -72,7 +71,6 @@ class Engine:
 
     def apply(self):
         """Execute apply mode - actually execute the actions"""
-        logger.info("Starting apply mode")
 
         with self.db:
             self.db.ensure_tables()

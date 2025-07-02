@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from ..log import get_logger
-from ..models import Action, ClusterInfo, ReplicaSpec, Signals, StrategyState
+from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -43,21 +43,30 @@ class TargetSizeStrategy(Strategy):
         ):
             raise ValueError("replica_name must be a non-empty string")
 
-    def decide(
+    def decide_desired_state(
         self,
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> tuple[list[Action], StrategyState]:
+    ) -> tuple[DesiredState, StrategyState]:
         """Make target size decisions"""
         self.validate_config(config)
 
-        actions = []
         now = datetime.utcnow()
-
         target_size = config["target_size"]
         replica_name = config.get("replica_name", f"r_{target_size}")
+
+        # Create desired state starting with current replicas
+        desired = DesiredState(
+            cluster_id=cluster_info.id,
+            strategy_type=current_state.strategy_type,
+            priority=1,  # Default priority
+        )
+
+        # Start with current replicas
+        for replica in cluster_info.replicas:
+            desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
 
         # Find current replicas by size
         current_replicas = list(cluster_info.replicas)
@@ -83,18 +92,14 @@ class TargetSizeStrategy(Strategy):
 
         # Case 1: No target size replica exists and none is pending
         if not target_size_replicas and not pending_target_replica:
-            # Create target size replica
+            # Add target size replica to desired state
             replica_spec = ReplicaSpec(name=replica_name, size=target_size)
-            actions.append(
-                Action(
-                    sql=replica_spec.to_create_sql(cluster_info.name),
-                    reason=f"Creating target size replica ({target_size})",
-                    expected_state_delta={"replicas_added": 1},
-                )
+            desired.add_replica(
+                replica_spec, f"Creating target size replica ({target_size})"
             )
 
             logger.info(
-                "Creating target size replica",
+                "Adding target size replica to desired state",
                 extra={
                     "cluster_id": signals.cluster_id,
                     "target_size": target_size,
@@ -112,22 +117,13 @@ class TargetSizeStrategy(Strategy):
 
             if target_replica_hydrated:
                 for replica in other_size_replicas:
-                    actions.append(
-                        Action(
-                            sql=(
-                                f"DROP CLUSTER REPLICA {cluster_info.name}."
-                                f"{replica.name}"
-                            ),
-                            reason=(
-                                f"Dropping non-target size replica ({replica.size}) - "
-                                "target size replica is hydrated"
-                            ),
-                            expected_state_delta={"replicas_removed": 1},
-                        )
+                    desired.remove_replica(
+                        replica.name,
+                        f"Dropping non-target size replica ({replica.size}) - target size replica is hydrated",
                     )
 
                 logger.info(
-                    "Dropping non-target size replicas",
+                    "Removing non-target size replicas from desired state",
                     extra={
                         "cluster_id": signals.cluster_id,
                         "target_size": target_size,
@@ -150,21 +146,15 @@ class TargetSizeStrategy(Strategy):
         # Case 4: We have a pending target replica but it doesn't exist -
         # need to recreate
         elif pending_target_replica and not target_size_replicas:
-            # The pending replica doesn't exist, create it again
+            # Add the target replica to desired state again
             replica_spec = ReplicaSpec(name=replica_name, size=target_size)
-            actions.append(
-                Action(
-                    sql=replica_spec.to_create_sql(cluster_info.name),
-                    reason=(
-                        f"Recreating target size replica ({target_size}) - "
-                        "pending replica not found"
-                    ),
-                    expected_state_delta={"replicas_added": 1},
-                )
+            desired.add_replica(
+                replica_spec,
+                f"Recreating target size replica ({target_size}) - pending replica not found",
             )
 
             logger.info(
-                "Recreating target size replica (pending replica not found)",
+                "Adding target size replica to desired state (pending replica not found)",
                 extra={
                     "cluster_id": signals.cluster_id,
                     "target_size": target_size,
@@ -176,16 +166,20 @@ class TargetSizeStrategy(Strategy):
         # Compute next state
         new_payload = current_state.payload.copy()
 
-        # Update state based on actions
-        if actions:
+        # Check if we made any changes to the desired state
+        current_replica_names = {r.name for r in cluster_info.replicas}
+        desired_replica_names = desired.get_replica_names()
+        changes_made = current_replica_names != desired_replica_names
+
+        # Update state based on changes
+        if changes_made:
             new_payload["last_decision_ts"] = now.isoformat()
 
+            # Track replica changes
+            replicas_added = len(desired_replica_names - current_replica_names)
+
             # Track pending target replica creation
-            replicas_added = sum(
-                action.expected_state_delta.get("replicas_added", 0)
-                for action in actions
-            )
-            if replicas_added > 0:
+            if replicas_added > 0 and replica_name in desired_replica_names:
                 new_payload["pending_target_replica"] = {
                     "name": replica_name,
                     "size": target_size,
@@ -203,7 +197,7 @@ class TargetSizeStrategy(Strategy):
             payload=new_payload,
         )
 
-        return actions, next_state
+        return desired, next_state
 
     @classmethod
     def initial_state(cls, cluster_id, strategy_type: str) -> StrategyState:

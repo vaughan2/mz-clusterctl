@@ -5,6 +5,7 @@ Coordinates the decision cycle: loading configurations, running strategies,
 and executing actions.
 """
 
+from .coordinator import ConflictResolution, StrategyCoordinator
 from .db import Database
 from .executor import Executor
 from .log import get_logger
@@ -32,6 +33,7 @@ class Engine:
         self.cluster_filter = cluster_filter
         self.db = Database(database_url)
         self.executor = Executor(self.db)
+        self.coordinator = StrategyCoordinator(ConflictResolution.PRIORITY)
 
     def __enter__(self):
         self.db.__enter__()
@@ -126,8 +128,13 @@ class Engine:
             "Strategy configs loaded", extra={"config_count": len(strategy_configs)}
         )
 
-        # Create lookup for strategies by cluster
-        config_by_cluster = {config.cluster_id: config for config in strategy_configs}
+        # Create lookup for strategies by cluster (support multiple strategies
+        # per cluster)
+        configs_by_cluster = {}
+        for config in strategy_configs:
+            if config.cluster_id not in configs_by_cluster:
+                configs_by_cluster[config.cluster_id] = []
+            configs_by_cluster[config.cluster_id].append(config)
 
         actions_by_cluster = {}
 
@@ -135,110 +142,120 @@ class Engine:
             actions_by_cluster[cluster] = []
 
             # Skip clusters without strategy configuration
-            if cluster.id not in config_by_cluster:
+            if cluster.id not in configs_by_cluster:
                 logger.debug(
                     "No strategy configured for cluster",
                     extra={"cluster_id": cluster.id, "cluster_name": cluster.name},
                 )
                 continue
 
-            config = config_by_cluster[cluster.id]
+            configs = configs_by_cluster[cluster.id]
 
-            # Get strategy class
-            if config.strategy_type not in STRATEGY_REGISTRY:
-                logger.error(
-                    "Unknown strategy type",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "strategy_type": config.strategy_type,
-                    },
-                )
-                continue
+            # Always use coordinator approach
+            actions_by_cluster[cluster] = self._run_coordinated_strategies(
+                cluster, configs, dry_run
+            )
 
-            strategy_class = STRATEGY_REGISTRY[config.strategy_type]
-            strategy = strategy_class()
+        return actions_by_cluster
 
-            try:
+    def _run_coordinated_strategies(
+        self, cluster: ClusterInfo, configs: list[StrategyConfig], dry_run: bool
+    ) -> list[Action]:
+        """Run strategies using the coordinator approach"""
+        try:
+            # Prepare strategies and their configurations
+            strategies_and_configs = []
+            strategy_states = {}
+
+            for config in configs:
+                if config.strategy_type not in STRATEGY_REGISTRY:
+                    logger.error(
+                        "Unknown strategy type",
+                        extra={
+                            "cluster_id": cluster.id,
+                            "strategy_type": config.strategy_type,
+                        },
+                    )
+                    continue
+
+                strategy_class = STRATEGY_REGISTRY[config.strategy_type]
+                strategy = strategy_class()
+
                 # Validate configuration
                 strategy.validate_config(config.config)
 
-                # 2. State hydration
+                # Prepare config dict
+                strategy_config = config.config.copy()
+                strategy_config["strategy_type"] = config.strategy_type
+
+                strategies_and_configs.append((strategy, strategy_config))
+
+                # Get or create state for this strategy
                 current_state = self._get_or_create_state(cluster, config, strategy)
-                logger.debug(
-                    "State hydrated",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "state_version": current_state.state_version,
-                        "current_state": current_state,
-                    },
-                )
+                strategy_states[config.strategy_type] = current_state
 
-                # 3. Get signals
-                with self.db.get_connection() as conn:
-                    signals = get_cluster_signals(conn, cluster.id, cluster.name)
-                logger.info(
-                    "Cluster signals retrieved",
-                    extra={"cluster_id": cluster.id, "signals": str(signals)},
+            if not strategies_and_configs:
+                logger.warning(
+                    "No valid strategies found for cluster",
+                    extra={"cluster_id": cluster.id, "configs_count": len(configs)},
                 )
+                return []
 
-                # 4. Run strategy
-                logger.info(
-                    "Running strategy",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "strategy_type": config.strategy_type,
-                    },
-                )
-                actions, new_state = strategy.decide(
-                    current_state, config.config, signals, cluster
-                )
-                actions_by_cluster[cluster] = actions
-                logger.debug(
-                    "Strategy completed",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "actions_count": len(actions),
-                    },
-                )
+            # Get signals
+            with self.db.get_connection() as conn:
+                signals = get_cluster_signals(conn, cluster.id, cluster.name)
+            logger.info(
+                "Cluster signals retrieved for coordination",
+                extra={"cluster_id": cluster.id, "signals": str(signals)},
+            )
 
-                # 5. Persist state (if not dry run)
-                if not dry_run:
-                    logger.debug("Persisting state", extra={"cluster_id": cluster.id})
-                    # Populate cluster name in state payload
-                    new_state.payload["cluster_name"] = cluster.name
-                    self.db.upsert_strategy_state(new_state)
+            # Coordinate strategies
+            logger.info(
+                "Running coordinated strategies",
+                extra={
+                    "cluster_id": cluster.id,
+                    "strategies_count": len(strategies_and_configs),
+                },
+            )
+            actions, new_states = self.coordinator.coordinate(
+                strategies_and_configs, cluster, signals, strategy_states
+            )
+
+            logger.debug(
+                "Coordination completed",
+                extra={
+                    "cluster_id": cluster.id,
+                    "actions_count": len(actions),
+                },
+            )
+
+            # Persist states (if not dry run)
+            if not dry_run:
+                for strategy_type, new_state in new_states.items():
                     logger.debug(
-                        "State persisted",
+                        "Persisting coordinated state",
                         extra={
                             "cluster_id": cluster.id,
-                            "new_state_version": new_state.state_version,
+                            "strategy_type": strategy_type,
                         },
                     )
+                    new_state.payload["cluster_name"] = cluster.name
+                    self.db.upsert_strategy_state(new_state)
 
-                logger.debug(
-                    "Processed cluster",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "cluster_name": cluster.name,
-                        "strategy_type": config.strategy_type,
-                        "actions_generated": len(actions),
-                    },
-                )
+            return actions
 
-            except Exception as e:
-                logger.error(
-                    "Error processing cluster",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "cluster_name": cluster.name,
-                        "strategy_type": config.strategy_type,
-                        "error": str(e),
-                    },
-                    exc_info=True,
-                )
-                continue
-
-        return actions_by_cluster
+        except Exception as e:
+            logger.error(
+                "Error processing coordinated strategies",
+                extra={
+                    "cluster_id": cluster.id,
+                    "cluster_name": cluster.name,
+                    "configs_count": len(configs),
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            return []
 
     def _get_or_create_state(
         self, cluster: ClusterInfo, config: StrategyConfig, strategy

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from ..log import get_logger
-from ..models import Action, ClusterInfo, ReplicaSpec, Signals, StrategyState
+from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -41,18 +41,28 @@ class BurstStrategy(Strategy):
         if not isinstance(config["burst_replica_size"], str):
             raise ValueError("burst_replica_size must be a string")
 
-    def decide(
+    def decide_desired_state(
         self,
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> tuple[list[Action], StrategyState]:
+    ) -> tuple[DesiredState, StrategyState]:
         """Make burst scaling decisions"""
         self.validate_config(config)
 
-        actions = []
         now = datetime.utcnow()
+
+        # Create desired state starting with current replicas
+        desired = DesiredState(
+            cluster_id=cluster_info.id,
+            strategy_type=current_state.strategy_type,
+            priority=1,  # Default priority
+        )
+
+        # Start with current replicas
+        for replica in cluster_info.replicas:
+            desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
 
         # Check cooldown period
         last_decision_ts = current_state.payload.get("last_decision_ts")
@@ -68,7 +78,8 @@ class BurstStrategy(Strategy):
                         - (now - last_decision).total_seconds(),
                     },
                 )
-                return actions, current_state
+                desired.reason = "In cooldown period"
+                return desired, current_state
 
         # Main burst logic: manage burst replica based on hydration status
         burst_replica_name = f"{cluster_info.name}_burst"
@@ -90,18 +101,14 @@ class BurstStrategy(Strategy):
         )
 
         if has_other_replicas and not other_replicas_hydrated and not has_burst_replica:
-            # Create burst replica when other replicas exist but none are hydrated
+            # Add burst replica when other replicas exist but none are hydrated
             burst_spec = ReplicaSpec(name=burst_replica_name, size=burst_replica_size)
-            actions.append(
-                Action(
-                    sql=burst_spec.to_create_sql(cluster_info.name),
-                    reason="Creating burst replica - no other replicas are hydrated",
-                    expected_state_delta={"replicas_added": 1},
-                )
+            desired.add_replica(
+                burst_spec, "Creating burst replica - no other replicas are hydrated"
             )
 
             logger.info(
-                "Creating burst replica",
+                "Adding burst replica to desired state",
                 extra={
                     "cluster_id": signals.cluster_id,
                     "burst_replica_size": burst_replica_size,
@@ -116,19 +123,14 @@ class BurstStrategy(Strategy):
             )
 
         elif has_burst_replica and other_replicas_hydrated:
-            # Drop burst replica when other replicas become hydrated
-            actions.append(
-                Action(
-                    sql=(
-                        f"DROP CLUSTER REPLICA {cluster_info.name}.{burst_replica_name}"
-                    ),
-                    reason="Dropping burst replica - other replicas are now hydrated",
-                    expected_state_delta={"replicas_removed": 1},
-                )
+            # Remove burst replica when other replicas become hydrated
+            desired.remove_replica(
+                burst_replica_name,
+                "Dropping burst replica - other replicas are now hydrated",
             )
 
             logger.info(
-                "Dropping burst replica",
+                "Removing burst replica from desired state",
                 extra={
                     "cluster_id": signals.cluster_id,
                     "reason": "other replicas hydrated",
@@ -138,17 +140,18 @@ class BurstStrategy(Strategy):
         # Compute next state
         new_payload = current_state.payload.copy()
 
-        # Update last decision timestamp if any actions were taken
-        if actions:
+        # Check if we made any changes to the desired state
+        current_replica_names = {r.name for r in cluster_info.replicas}
+        desired_replica_names = desired.get_replica_names()
+        changes_made = current_replica_names != desired_replica_names
+
+        # Update last decision timestamp if any changes were made
+        if changes_made:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
         # Track replica changes
-        replicas_added = sum(
-            action.expected_state_delta.get("replicas_added", 0) for action in actions
-        )
-        replicas_removed = sum(
-            action.expected_state_delta.get("replicas_removed", 0) for action in actions
-        )
+        replicas_added = len(desired_replica_names - current_replica_names)
+        replicas_removed = len(current_replica_names - desired_replica_names)
 
         if replicas_added > 0 or replicas_removed > 0:
             new_payload["last_scale_action"] = {
@@ -164,7 +167,7 @@ class BurstStrategy(Strategy):
             payload=new_payload,
         )
 
-        return actions, next_state
+        return desired, next_state
 
     @classmethod
     def initial_state(cls, cluster_id, strategy_type: str) -> StrategyState:

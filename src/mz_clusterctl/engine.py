@@ -48,7 +48,7 @@ class Engine:
             actions_by_cluster = self._run_decision_cycle(dry_run=True)
 
             if not any(actions_by_cluster.values()):
-                print("No actions would be taken.")
+                logger.info("No actions would be taken.")
                 return
 
             print("Planned actions:")
@@ -77,7 +77,7 @@ class Engine:
 
             total_actions = sum(len(actions) for actions in actions_by_cluster.values())
             if total_actions == 0:
-                print("No actions to execute.")
+                logger.info("No actions to execute.")
                 return
 
             print(f"Executing {total_actions} actions...")
@@ -117,10 +117,6 @@ class Engine:
         Returns:
             Dictionary mapping ClusterInfo to list of actions
         """
-        logger.trace(
-            "Starting decision cycle",
-            extra={"dry_run": dry_run, "cluster_filter": self.cluster_filter},
-        )
 
         # 1. Bootstrap - load configurations
         clusters = self.db.get_clusters(self.cluster_filter)
@@ -168,7 +164,7 @@ class Engine:
 
                 # 2. State hydration
                 current_state = self._get_or_create_state(cluster, config, strategy)
-                logger.trace(
+                logger.debug(
                     "State hydrated",
                     extra={
                         "cluster_id": cluster.id,
@@ -248,7 +244,7 @@ class Engine:
         self, cluster: ClusterInfo, config: StrategyConfig, strategy
     ) -> StrategyState:
         """Get existing state or create initial state for a cluster/strategy"""
-        logger.trace(
+        logger.debug(
             "Getting or creating state",
             extra={
                 "cluster_id": cluster.id,
@@ -256,7 +252,7 @@ class Engine:
             },
         )
         existing_state = self.db.get_strategy_state(cluster.id)
-        logger.trace(
+        logger.debug(
             "State query completed",
             extra={
                 "cluster_id": cluster.id,

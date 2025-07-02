@@ -54,7 +54,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | 
             AND finished_at IS NOT NULL
         """
         params = (cluster_id,)
-        logger.trace(
+        logger.debug(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -66,7 +66,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | 
             cur.execute(sql, params)
             result = cur.fetchone()
             if result and result["last_activity"]:
-                logger.trace(
+                logger.debug(
                     "Last activity found",
                     extra={
                         "cluster_id": cluster_id,
@@ -75,7 +75,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | 
                 )
                 return result["last_activity"]
 
-            logger.trace("No last activity found", extra={"cluster_id": cluster_id})
+            logger.debug("No last activity found", extra={"cluster_id": cluster_id})
             return None
         except Exception as e:
             logger.error(
@@ -111,7 +111,7 @@ def _get_hydration_status(
             GROUP BY cr.name
         """
         params = (cluster_name,)
-        logger.trace(
+        logger.debug(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -141,7 +141,7 @@ def _get_hydration_status(
             is_hydrated = total_objects > 0 and hydrated_objects == total_objects
             hydration_status[replica_name] = is_hydrated
 
-        logger.trace(
+        logger.debug(
             "Per-replica hydration status calculated",
             extra={
                 "cluster_name": cluster_name,
@@ -173,7 +173,7 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
             WHERE c.name = %s
         """
         params = (cluster_name,)
-        logger.trace(
+        logger.debug(
             "Executing SQL",
             extra={
                 "sql": sql,
@@ -205,7 +205,7 @@ def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:
             SELECT COUNT(*) as active_queries
             FROM mz_internal.mz_active_peeks
         """
-        logger.trace("Executing SQL", extra={"sql": sql, "params": None})
+        logger.debug("Executing SQL", extra={"sql": sql, "params": None})
         try:
             cur.execute(sql)
         except Exception as e:

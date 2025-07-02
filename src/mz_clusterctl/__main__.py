@@ -37,7 +37,7 @@ def main():
         "-v",
         action="count",
         default=0,
-        help="Enable verbose logging (-v for debug, -vv for trace)",
+        help="Enable verbose logging (-v for info, -vv for debug)",
     )
     common_parser.add_argument(
         "--postgres-url",

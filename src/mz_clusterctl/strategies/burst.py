@@ -1,15 +1,16 @@
 """
 Burst scaling strategy for mz-clusterctl
 
-Auto-scaling strategy that adds replicas when activity is high and removes them during idle periods.
+Auto-scaling strategy that adds replicas when activity is high and removes them
+during idle periods.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
-from .base import Strategy
 from ..log import get_logger
 from ..models import Action, ClusterInfo, ReplicaSpec, Signals, StrategyState
+from .base import Strategy
 
 logger = get_logger(__name__)
 
@@ -24,7 +25,7 @@ class BurstStrategy(Strategy):
     3. Respects cooldown periods to avoid thrashing
     """
 
-    def validate_config(self, config: Dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any]) -> None:
         """Validate burst strategy configuration"""
         required_keys = [
             "burst_replica_size",
@@ -42,10 +43,10 @@ class BurstStrategy(Strategy):
     def decide(
         self,
         current_state: StrategyState,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> Tuple[List[Action], StrategyState]:
+    ) -> tuple[list[Action], StrategyState]:
         """Make burst scaling decisions"""
         self.validate_config(config)
 
@@ -117,7 +118,9 @@ class BurstStrategy(Strategy):
             # Drop burst replica when other replicas become hydrated
             actions.append(
                 Action(
-                    sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{burst_replica_name}",
+                    sql=(
+                        f"DROP CLUSTER REPLICA {cluster_info.name}.{burst_replica_name}"
+                    ),
                     reason="Dropping burst replica - other replicas are now hydrated",
                     expected_state_delta={"replicas_removed": 1},
                 )

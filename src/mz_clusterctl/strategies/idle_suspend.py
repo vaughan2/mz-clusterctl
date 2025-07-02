@@ -5,11 +5,11 @@ Simple strategy that suspends cluster replicas after a period of inactivity.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
-from .base import Strategy
 from ..log import get_logger
 from ..models import Action, ClusterInfo, Signals, StrategyState
+from .base import Strategy
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,7 @@ class IdleSuspendStrategy(Strategy):
     4. Respects cooldown periods to avoid repeated suspend attempts
     """
 
-    def validate_config(self, config: Dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any]) -> None:
         """Validate idle suspend strategy configuration"""
         required_keys = ["idle_after_s"]
         for key in required_keys:
@@ -42,10 +42,10 @@ class IdleSuspendStrategy(Strategy):
     def decide(
         self,
         current_state: StrategyState,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> Tuple[List[Action], StrategyState]:
+    ) -> tuple[list[Action], StrategyState]:
         """Make idle suspend decisions"""
         self.validate_config(config)
 
@@ -104,7 +104,10 @@ class IdleSuspendStrategy(Strategy):
                         actions.append(
                             Action(
                                 sql=replica_spec.to_create_sql(cluster_info.name),
-                                reason=f"Recreating replica due to recent activity ({signals.seconds_since_activity:.0f}s ago)",
+                                reason=(
+                                    f"Recreating replica due to recent activity "
+                                    f"({signals.seconds_since_activity:.0f}s ago)"
+                                ),
                                 expected_state_delta={"replicas_added": 1},
                             )
                         )
@@ -136,13 +139,19 @@ class IdleSuspendStrategy(Strategy):
 
             if signals.seconds_since_activity > idle_after_s:
                 should_suspend = True
-                reason = f"Idle for {signals.seconds_since_activity:.0f}s (threshold: {idle_after_s}s)"
+                reason = (
+                    f"Idle for {signals.seconds_since_activity:.0f}s "
+                    f"(threshold: {idle_after_s}s)"
+                )
 
             if should_suspend:
                 for replica in cluster_info.replicas:
                     actions.append(
                         Action(
-                            sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{replica.name}",
+                            sql=(
+                                f"DROP CLUSTER REPLICA {cluster_info.name}."
+                                f"{replica.name}"
+                            ),
                             reason=reason,
                             expected_state_delta={"replicas_removed": 1},
                         )

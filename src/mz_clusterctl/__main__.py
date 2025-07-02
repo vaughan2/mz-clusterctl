@@ -2,7 +2,8 @@
 """
 mz-clusterctl: External cluster controller for Materialize
 
-CLI interface for managing Materialize cluster replicas based on configurable strategies.
+CLI interface for managing Materialize cluster replicas based on configurable
+strategies.
 """
 
 import argparse

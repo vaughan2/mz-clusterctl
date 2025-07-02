@@ -1,10 +1,9 @@
 """
 Orchestration engine for mz-clusterctl
 
-Coordinates the decision cycle: loading configurations, running strategies, and executing actions.
+Coordinates the decision cycle: loading configurations, running strategies,
+and executing actions.
 """
-
-from typing import Dict, List, Optional
 
 from .db import Database
 from .executor import Executor
@@ -28,7 +27,7 @@ class Engine:
     5. Persist state - save updated state
     """
 
-    def __init__(self, database_url: str, cluster_filter: Optional[str] = None):
+    def __init__(self, database_url: str, cluster_filter: str | None = None):
         self.database_url = database_url
         self.cluster_filter = cluster_filter
         self.db = Database(database_url)
@@ -111,7 +110,7 @@ class Engine:
 
     def _run_decision_cycle(
         self, dry_run: bool = True
-    ) -> Dict[ClusterInfo, List[Action]]:
+    ) -> dict[ClusterInfo, list[Action]]:
         """
         Run the full decision cycle for all configured clusters
 

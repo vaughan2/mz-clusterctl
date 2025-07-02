@@ -7,11 +7,11 @@ If other size replicas exist when the target size replica is hydrated, it drops 
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
-from .base import Strategy
 from ..log import get_logger
 from ..models import Action, ClusterInfo, ReplicaSpec, Signals, StrategyState
+from .base import Strategy
 
 logger = get_logger(__name__)
 
@@ -27,7 +27,7 @@ class TargetSizeStrategy(Strategy):
     4. Optionally uses a specific replica name for the target size replica
     """
 
-    def validate_config(self, config: Dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any]) -> None:
         """Validate target size strategy configuration"""
         required_keys = ["target_size"]
         for key in required_keys:
@@ -38,20 +38,18 @@ class TargetSizeStrategy(Strategy):
             raise ValueError("target_size must be a non-empty string")
 
         # Optional replica name validation
-        if "replica_name" in config:
-            if (
-                not isinstance(config["replica_name"], str)
-                or not config["replica_name"]
-            ):
-                raise ValueError("replica_name must be a non-empty string")
+        if "replica_name" in config and (
+            not isinstance(config["replica_name"], str) or not config["replica_name"]
+        ):
+            raise ValueError("replica_name must be a non-empty string")
 
     def decide(
         self,
         current_state: StrategyState,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> Tuple[List[Action], StrategyState]:
+    ) -> tuple[list[Action], StrategyState]:
         """Make target size decisions"""
         self.validate_config(config)
 
@@ -116,8 +114,14 @@ class TargetSizeStrategy(Strategy):
                 for replica in other_size_replicas:
                     actions.append(
                         Action(
-                            sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{replica.name}",
-                            reason=f"Dropping non-target size replica ({replica.size}) - target size replica is hydrated",
+                            sql=(
+                                f"DROP CLUSTER REPLICA {cluster_info.name}."
+                                f"{replica.name}"
+                            ),
+                            reason=(
+                                f"Dropping non-target size replica ({replica.size}) - "
+                                "target size replica is hydrated"
+                            ),
                             expected_state_delta={"replicas_removed": 1},
                         )
                     )
@@ -143,14 +147,18 @@ class TargetSizeStrategy(Strategy):
                 },
             )
 
-        # Case 4: We have a pending target replica but it doesn't exist - need to recreate
+        # Case 4: We have a pending target replica but it doesn't exist -
+        # need to recreate
         elif pending_target_replica and not target_size_replicas:
             # The pending replica doesn't exist, create it again
             replica_spec = ReplicaSpec(name=replica_name, size=target_size)
             actions.append(
                 Action(
                     sql=replica_spec.to_create_sql(cluster_info.name),
-                    reason=f"Recreating target size replica ({target_size}) - pending replica not found",
+                    reason=(
+                        f"Recreating target size replica ({target_size}) - "
+                        "pending replica not found"
+                    ),
                     expected_state_delta={"replicas_added": 1},
                 )
             )

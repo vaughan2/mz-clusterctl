@@ -25,3 +25,19 @@ build-backend = "hatchling.build"
 dev = [
     "ruff>=0.12.1",
 ]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]

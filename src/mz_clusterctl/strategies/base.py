@@ -5,7 +5,7 @@ Defines the Strategy abstract base class that all scaling strategies must implem
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from ..models import Action, ClusterInfo, Signals, StrategyState
 
@@ -25,10 +25,10 @@ class Strategy(ABC):
     def decide(
         self,
         current_state: StrategyState,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
-    ) -> Tuple[List[Action], StrategyState]:
+    ) -> tuple[list[Action], StrategyState]:
         """
         Make scaling decisions based on current state and signals
 
@@ -74,7 +74,8 @@ class Strategy(ABC):
         """
         return state.state_version == self.CURRENT_STATE_VERSION
 
-    def validate_config(self, config: Dict[str, Any]) -> None:
+    @abstractmethod
+    def validate_config(self, config: dict[str, Any]) -> None:
         """
         Validate strategy configuration
 
@@ -84,6 +85,4 @@ class Strategy(ABC):
         Raises:
             ValueError: If configuration is invalid
         """
-        # Default implementation does no validation
-        # Subclasses should override to add validation
         pass

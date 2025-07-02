@@ -4,10 +4,10 @@ Data models for mz-clusterctl
 Contains dataclasses for strategy state, replica specifications, and actions.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 import json
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -16,7 +16,7 @@ class ReplicaSpec:
 
     name: str
     size: str
-    availability_zone: Optional[str] = None
+    availability_zone: str | None = None
     disk: bool = False
     internal: bool = False
 
@@ -42,7 +42,7 @@ class Action:
 
     sql: str
     reason: str
-    expected_state_delta: Dict[str, Any] = field(default_factory=dict)
+    expected_state_delta: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return f"{self.sql} -- {self.reason}"
@@ -66,7 +66,7 @@ class ClusterInfo:
     managed: bool = True
 
     @classmethod
-    def from_db_row(cls, row: Dict[str, Any]) -> "ClusterInfo":
+    def from_db_row(cls, row: dict[str, Any]) -> "ClusterInfo":
         """Create ClusterInfo from database row"""
         replicas = row.get("replicas", [])
         if isinstance(replicas, list):
@@ -86,8 +86,8 @@ class StrategyState:
     cluster_id: str
     strategy_type: str
     state_version: int
-    payload: Dict[str, Any] = field(default_factory=dict)
-    updated_at: Optional[datetime] = None
+    payload: dict[str, Any] = field(default_factory=dict)
+    updated_at: datetime | None = None
 
     def to_json(self) -> str:
         """Serialize state to JSON for database storage"""
@@ -121,11 +121,11 @@ class StrategyConfig:
 
     cluster_id: str
     strategy_type: str
-    config: Dict[str, Any]
-    updated_at: Optional[datetime] = None
+    config: dict[str, Any]
+    updated_at: datetime | None = None
 
     @classmethod
-    def from_db_row(cls, row: Dict[str, Any]) -> "StrategyConfig":
+    def from_db_row(cls, row: dict[str, Any]) -> "StrategyConfig":
         """Create StrategyConfig from database row"""
         return cls(
             cluster_id=row["cluster_id"],
@@ -140,15 +140,15 @@ class Signals:
     """Signals/metrics used by strategies to make decisions"""
 
     cluster_id: str
-    last_activity_ts: Optional[datetime] = None
-    hydration_status: Dict[str, bool] = field(default_factory=dict)
+    last_activity_ts: datetime | None = None
+    hydration_status: dict[str, bool] = field(default_factory=dict)
 
     @property
-    def seconds_since_activity(self) -> Optional[float]:
+    def seconds_since_activity(self) -> float | None:
         """Seconds since last activity, or None if no activity recorded"""
         if self.last_activity_ts is None:
             return None
-        return (datetime.now(timezone.utc) - self.last_activity_ts).total_seconds()
+        return (datetime.now(UTC) - self.last_activity_ts).total_seconds()
 
     @property
     def is_hydrated(self) -> bool:

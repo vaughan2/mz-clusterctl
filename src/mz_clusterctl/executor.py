@@ -4,7 +4,7 @@ SQL execution engine for mz-clusterctl
 Handles execution of actions in apply mode with proper error handling and audit logging.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from .db import Database
 from .log import get_logger
@@ -27,7 +27,7 @@ class Executor:
     def __init__(self, db: Database):
         self.db = db
 
-    def execute_actions(self, cluster_id: str, actions: List[Action]) -> Dict[str, Any]:
+    def execute_actions(self, cluster_id: str, actions: list[Action]) -> dict[str, Any]:
         """
         Execute a list of actions for a cluster
 
@@ -169,17 +169,17 @@ class Executor:
                         exc_info=True,
                     )
 
-                # Stop execution on first error (fail-fast approach)
-                if not executed:
-                    logger.warning(
-                        "Stopping execution due to error",
-                        extra={
-                            "cluster_id": cluster_id,
-                            "failed_action_index": i,
-                            "remaining_actions": len(actions) - i,
-                        },
-                    )
-                    break
+            # Stop execution on first error (fail-fast approach)
+            if not executed:
+                logger.warning(
+                    "Stopping execution due to error",
+                    extra={
+                        "cluster_id": cluster_id,
+                        "failed_action_index": i,
+                        "remaining_actions": len(actions) - i,
+                    },
+                )
+                break
 
         logger.info(
             "Action execution completed",
@@ -189,7 +189,8 @@ class Executor:
         # Print execution summary
         if summary["failed"] > 0:
             print(
-                f"Execution completed with errors: {summary['executed']}/{summary['total']} actions succeeded"
+                f"Execution completed with errors: "
+                f"{summary['executed']}/{summary['total']} actions succeeded"
             )
             print("Errors:")
             for error in summary["errors"]:

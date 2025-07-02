@@ -5,7 +5,6 @@ Functions to query activity and hydration status from Materialize system tables.
 """
 
 from datetime import datetime
-from typing import Dict, Optional
 
 import psycopg
 
@@ -40,11 +39,12 @@ def get_cluster_signals(
     return signals
 
 
-def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[datetime]:
+def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | None:
     """
     Get timestamp of last activity on a cluster using mz_recent_activity_log_redacted
 
-    Queries the recent activity log to find the most recent activity for the specified cluster.
+    Queries the recent activity log to find the most recent activity for the
+    specified cluster.
     """
     with conn.cursor() as cur:
         sql = """
@@ -88,14 +88,15 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> Optional[da
 
 def _get_hydration_status(
     conn: psycopg.Connection, cluster_name: str
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     Get hydration status per replica for a cluster using mz_compute_hydration_statuses
 
     This queries the hydration status of compute objects on each replica in the cluster.
 
     Returns:
-        Dict mapping replica names to their hydration status (True if hydrated, False otherwise)
+        Dict mapping replica names to their hydration status (True if hydrated,
+        False otherwise)
     """
     with conn.cursor() as cur:
         sql = """

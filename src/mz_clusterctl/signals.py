@@ -41,15 +41,15 @@ def get_cluster_signals(
 
 def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | None:
     """
-    Get timestamp of last activity on a cluster using mz_recent_activity_log_redacted
+    Get timestamp of last activity on a cluster using mz_statement_execution_history_redacted
 
-    Queries the recent activity log to find the most recent activity for the
+    Queries the statement execution history to find the most recent activity for the
     specified cluster.
     """
     with conn.cursor() as cur:
         sql = """
             SELECT MAX(finished_at) as last_activity
-            FROM mz_internal.mz_recent_activity_log_redacted 
+            FROM mz_internal.mz_statement_execution_history_redacted
             WHERE cluster_id = %s
             AND finished_at IS NOT NULL
         """
@@ -100,7 +100,7 @@ def _get_hydration_status(
     """
     with conn.cursor() as cur:
         sql = """
-            SELECT 
+            SELECT
                 cr.name as replica_name,
                 COUNT(*) as total_objects,
                 COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects

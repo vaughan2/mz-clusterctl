@@ -19,30 +19,25 @@ class BurstStrategy(Strategy):
     Burst scaling strategy implementation
 
     This strategy:
-    1. Scales up when activity is detected and current capacity might be insufficient
-    2. Scales down to 0 replicas after a configured idle period
+    1. Creates a large "burst" replica when no replicas are hydrated
+    2. Drops the burst replica when any other replica becomes hydrated
     3. Respects cooldown periods to avoid thrashing
-    4. Enforces maximum replica limits
     """
 
     def validate_config(self, config: Dict[str, Any]) -> None:
         """Validate burst strategy configuration"""
         required_keys = [
-            "max_replicas",
-            "scale_up_threshold_ms",
+            "burst_replica_size",
             "cooldown_s",
-            "idle_after_s",
         ]
         for key in required_keys:
             if key not in config:
                 raise ValueError(f"Missing required config key: {key}")
 
-        if config["max_replicas"] < 0:
-            raise ValueError("max_replicas must be >= 0")
         if config["cooldown_s"] < 0:
             raise ValueError("cooldown_s must be >= 0")
-        if config["idle_after_s"] < 0:
-            raise ValueError("idle_after_s must be >= 0")
+        if not isinstance(config["burst_replica_size"], str):
+            raise ValueError("burst_replica_size must be a string")
 
     def decide(
         self,
@@ -73,61 +68,68 @@ class BurstStrategy(Strategy):
                 )
                 return actions, current_state
 
-        # Check for idle shutdown
-        idle_after_s = config["idle_after_s"]
-        current_replicas = len(cluster_info.replicas)
-        if (
-            signals.seconds_since_activity
-            and signals.seconds_since_activity > idle_after_s
-        ):
-            if current_replicas > 0:
-                for replica in cluster_info.replicas:
-                    actions.append(
-                        Action(
-                            sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{replica.name}",
-                            reason=f"Idle for {signals.seconds_since_activity:.0f}s (threshold: {idle_after_s}s)",
-                            expected_state_delta={"replicas_removed": 1},
-                        )
-                    )
+        # Main burst logic: manage burst replica based on hydration status
+        burst_replica_name = f"{cluster_info.name}-burst"
+        burst_replica_size = config["burst_replica_size"]
+        has_burst_replica = any(
+            replica.name == burst_replica_name for replica in cluster_info.replicas
+        )
 
-                logger.info(
-                    "Scaling down idle cluster",
-                    extra={
-                        "cluster_id": signals.cluster_id,
-                        "idle_seconds": signals.seconds_since_activity,
-                        "threshold": idle_after_s,
-                        "replicas_to_remove": current_replicas,
-                    },
+        # Check if any non-burst replicas are hydrated
+        other_replicas_hydrated = any(
+            signals.is_replica_hydrated(replica.name)
+            for replica in cluster_info.replicas
+            if replica.name != burst_replica_name
+        )
+
+        # Check if any non-burst replicas exist
+        has_other_replicas = any(
+            replica.name != burst_replica_name for replica in cluster_info.replicas
+        )
+
+        if has_other_replicas and not other_replicas_hydrated and not has_burst_replica:
+            # Create burst replica when other replicas exist but none are hydrated
+            burst_spec = ReplicaSpec(name=burst_replica_name, size=burst_replica_size)
+            actions.append(
+                Action(
+                    sql=burst_spec.to_create_sql(cluster_info.name),
+                    reason="Creating burst replica - no other replicas are hydrated",
+                    expected_state_delta={"replicas_added": 1},
                 )
+            )
 
-        # Check for scale up conditions
-        elif self._should_scale_up(config, signals, current_replicas):
-            max_replicas = config["max_replicas"]
-            if current_replicas < max_replicas:
-                # Add one replica
-                replica_name = f"{cluster_info.name}-replica-{current_replicas}"
+            logger.info(
+                "Creating burst replica",
+                extra={
+                    "cluster_id": signals.cluster_id,
+                    "burst_replica_size": burst_replica_size,
+                    "other_replicas_count": len(
+                        [
+                            r
+                            for r in cluster_info.replicas
+                            if r.name != burst_replica_name
+                        ]
+                    ),
+                },
+            )
 
-                # Use default size, can be made configurable
-                replica_size = config.get("replica_size", "xsmall")
-                replica_spec = ReplicaSpec(name=replica_name, size=replica_size)
-
-                actions.append(
-                    Action(
-                        sql=replica_spec.to_create_sql(cluster_info.name),
-                        reason=f"Activity detected, scaling up (current: {current_replicas}, max: {max_replicas})",
-                        expected_state_delta={"replicas_added": 1},
-                    )
+        elif has_burst_replica and other_replicas_hydrated:
+            # Drop burst replica when other replicas become hydrated
+            actions.append(
+                Action(
+                    sql=f"DROP CLUSTER REPLICA {cluster_info.name}.{burst_replica_name}",
+                    reason="Dropping burst replica - other replicas are now hydrated",
+                    expected_state_delta={"replicas_removed": 1},
                 )
+            )
 
-                logger.info(
-                    "Scaling up cluster",
-                    extra={
-                        "cluster_id": signals.cluster_id,
-                        "current_replicas": current_replicas,
-                        "max_replicas": max_replicas,
-                        "replica_size": replica_size,
-                    },
-                )
+            logger.info(
+                "Dropping burst replica",
+                extra={
+                    "cluster_id": signals.cluster_id,
+                    "reason": "other replicas hydrated",
+                },
+            )
 
         # Compute next state
         new_payload = current_state.payload.copy()
@@ -170,31 +172,3 @@ class BurstStrategy(Strategy):
             "cluster_name": None,  # Will be populated by engine
         }
         return state
-
-    def _should_scale_up(
-        self, config: Dict[str, Any], signals: Signals, current_replicas: int
-    ) -> bool:
-        """
-        Determine if we should scale up based on current signals
-
-        This is a simplified implementation. In practice, you might want to:
-        - Check query queue depths
-        - Monitor response times or latency
-        - Look at resource utilization
-        - Check for pending hydration work
-        """
-        # If there's recent activity and we have no replicas, we should scale up
-        if current_replicas == 0 and signals.seconds_since_activity is not None:
-            scale_up_threshold_ms = config["scale_up_threshold_ms"]
-            if signals.seconds_since_activity * 1000 <= scale_up_threshold_ms:
-                return True
-
-        # Additional scale-up conditions could be added here
-        # For example, checking if cluster is not fully hydrated
-        if not signals.is_hydrated and current_replicas == 0:
-            return True
-
-        # If we have active queries but no replicas, scale up
-        # (This would require additional signals from the signals module)
-
-        return False

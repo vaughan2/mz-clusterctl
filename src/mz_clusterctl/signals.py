@@ -104,9 +104,10 @@ def _get_hydration_status(
                 cr.name as replica_name,
                 COUNT(*) as total_objects,
                 COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
-            FROM mz_internal.mz_compute_hydration_statuses h
-            JOIN mz_cluster_replicas cr ON h.replica_id = cr.id
-            JOIN mz_clusters c ON cr.cluster_id = c.id
+            FROM mz_clusters c
+            JOIN mz_cluster_replicas cr ON cr.cluster_id = c.id
+            JOIN mz_indexes i ON i.cluster_id = c.id
+            LEFT JOIN mz_internal.mz_hydration_statuses h ON h.replica_id = cr.id AND h.object_id = i.id
             WHERE c.name = %s
             GROUP BY cr.name
         """

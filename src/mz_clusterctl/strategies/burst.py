@@ -29,13 +29,14 @@ class BurstStrategy(Strategy):
         """Validate burst strategy configuration"""
         required_keys = [
             "burst_replica_size",
-            "cooldown_s",
         ]
         for key in required_keys:
             if key not in config:
                 raise ValueError(f"Missing required config key: {key}")
 
-        if config["cooldown_s"] < 0:
+        # cooldown_s is optional, default to 0 if not provided
+        cooldown_s = config.get("cooldown_s", 0)
+        if cooldown_s < 0:
             raise ValueError("cooldown_s must be >= 0")
         if not isinstance(config["burst_replica_size"], str):
             raise ValueError("burst_replica_size must be a string")
@@ -57,7 +58,7 @@ class BurstStrategy(Strategy):
         last_decision_ts = current_state.payload.get("last_decision_ts")
         if last_decision_ts:
             last_decision = datetime.fromisoformat(last_decision_ts)
-            cooldown_seconds = config["cooldown_s"]
+            cooldown_seconds = config.get("cooldown_s", 0)
             if (now - last_decision).total_seconds() < cooldown_seconds:
                 logger.debug(
                     "Skipping decision due to cooldown",

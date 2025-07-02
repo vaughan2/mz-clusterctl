@@ -71,7 +71,7 @@ class BurstStrategy(Strategy):
                 return actions, current_state
 
         # Main burst logic: manage burst replica based on hydration status
-        burst_replica_name = f"{cluster_info.name}-burst"
+        burst_replica_name = f"{cluster_info.name}_burst"
         burst_replica_size = config["burst_replica_size"]
         has_burst_replica = any(
             replica.name == burst_replica_name for replica in cluster_info.replicas

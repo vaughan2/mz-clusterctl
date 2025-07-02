@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Debug test script to demonstrate the enhanced logging in mz-schedctl.
+Debug test script to demonstrate the enhanced logging in mz-clusterctl.
 
 This script shows how to use the enhanced debugging features to track down
 the "there is no parameter $1" error.
@@ -12,8 +12,8 @@ import sys
 # Add the source directory to Python path
 sys.path.insert(0, "/Users/aljoscha/Dev/mz-schedctl/src")
 
-from mz_schedctl.log import setup_logging
-from mz_schedctl.engine import Engine
+from mz_clusterctl.log import setup_logging
+from mz_clusterctl.engine import Engine
 
 
 def test_debug_logging():

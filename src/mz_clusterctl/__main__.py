@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-mz-schedctl: External cluster-scheduling controller for Materialize
+mz-clusterctl: External cluster controller for Materialize
 
 CLI interface for managing Materialize cluster replicas based on configurable strategies.
 """
@@ -20,8 +20,8 @@ def main():
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        prog="mz-schedctl",
-        description="External cluster-scheduling controller for Materialize",
+        prog="mz-clusterctl",
+        description="External cluster controller for Materialize",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")

@@ -1,5 +1,5 @@
 """
-Data models for mz-schedctl
+Data models for mz-clusterctl
 
 Contains dataclasses for strategy state, replica specifications, and actions.
 """

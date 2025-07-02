@@ -1,5 +1,5 @@
 """
-Idle suspend strategy for mz-schedctl
+Idle suspend strategy for mz-clusterqctl
 
 Simple strategy that suspends cluster replicas after a period of inactivity.
 """

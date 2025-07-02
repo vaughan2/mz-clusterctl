@@ -1,5 +1,5 @@
 """
-Database connection and helper functions for mz-schedctl
+Database connection and helper functions for mz-clusterctl
 
 Provides PostgreSQL connection pool and database schema management.
 """

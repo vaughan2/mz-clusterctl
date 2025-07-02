@@ -1,5 +1,5 @@
 """
-Structured logging configuration for mz-schedctl
+Structured logging configuration for mz-clusterctl
 
 Provides consistent logging setup with structured output for both stdout and audit tables.
 """

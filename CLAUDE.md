@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is `mz-schedctl`, an external cluster-scheduling controller for Materialize. It's a Python CLI tool that manages Materialize cluster replicas based on configurable strategies like auto-scaling and idle shutdown.
+This is `mz-clusterctl`, an external cluster controller for Materialize. It's a Python CLI tool that manages Materialize cluster replicas based on configurable strategies like auto-scaling and idle shutdown.
 
 ## Development Commands
 
@@ -15,13 +15,13 @@ This project uses `uv` as the Python package manager. Common commands:
 uv sync
 
 # Run the CLI tool
-uv run mz-schedctl
+uv run mz-clusterctl
 
 # Install in development mode
 uv pip install -e .
 
 # Run with Python directly
-uv run python -m mz_schedctl
+uv run python -m mz_clusterctl
 
 # Formatting and linting with ruff
 uv run ruff format         # Format code
@@ -41,7 +41,7 @@ The project follows a stateless CLI execution model with the following key compo
 ### Core Architecture Components
 
 ```
-mz_schedctl/
+mz_clusterctl/
 ├─ __main__.py          # CLI argument parsing and mode dispatch
 ├─ db.py                # PostgreSQL connection pool and database helpers
 ├─ models.py            # Data classes for StrategyState, ReplicaSpec, etc.

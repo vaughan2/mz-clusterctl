@@ -1,8 +1,8 @@
-# mz-schedctl
+# mz-clusterctl
 
-External cluster-scheduling controller for Materialize. A Python CLI tool that
-manages Materialize cluster replicas based on configurable strategies like
-auto-scaling and idle shutdown.
+External cluster controller for Materialize. A Python CLI tool that manages
+Materialize cluster replicas based on configurable strategies like auto-scaling
+and idle shutdown.
 
 ## Quick Start
 
@@ -11,10 +11,10 @@ auto-scaling and idle shutdown.
 uv sync
 
 # Run dry-run to see planned actions
-uv run mz-schedctl plan
+uv run mz-clusterctl plan
 
 # Execute the actions
-uv run mz-schedctl apply
+uv run mz-clusterctl apply
 
 # Format and lint
 uv run ruff format && uv run ruff check

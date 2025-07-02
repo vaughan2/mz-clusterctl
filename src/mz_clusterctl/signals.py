@@ -1,5 +1,5 @@
 """
-Signal queries for mz-schedctl
+Signal queries for mz-clusterctl
 
 Functions to query activity and hydration status from Materialize system tables.
 """

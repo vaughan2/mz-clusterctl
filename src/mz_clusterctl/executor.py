@@ -1,5 +1,5 @@
 """
-SQL execution engine for mz-schedctl
+SQL execution engine for mz-clusterctl
 
 Handles execution of actions in apply mode with proper error handling and audit logging.
 """

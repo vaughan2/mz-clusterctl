@@ -1,5 +1,5 @@
 """
-Burst scaling strategy for mz-schedctl
+Burst scaling strategy for mz-clusterctl
 
 Auto-scaling strategy that adds replicas when activity is high and removes them during idle periods.
 """

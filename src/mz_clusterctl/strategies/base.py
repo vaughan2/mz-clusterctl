@@ -1,5 +1,5 @@
 """
-Base strategy interface for mz-schedctl
+Base strategy interface for mz-clusterctl
 
 Defines the Strategy abstract base class that all scaling strategies must implement.
 """

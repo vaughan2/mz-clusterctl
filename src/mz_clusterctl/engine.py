@@ -1,5 +1,5 @@
 """
-Orchestration engine for mz-schedctl
+Orchestration engine for mz-clusterctl
 
 Coordinates the decision cycle: loading configurations, running strategies, and executing actions.
 """
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 class Engine:
     """
-    Main orchestration engine for mz-schedctl
+    Main orchestration engine for mz-clusterctl
 
     Coordinates the full decision cycle:
     1. Bootstrap - load cluster and strategy configurations

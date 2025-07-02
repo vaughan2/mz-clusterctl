@@ -1,4 +1,4 @@
-# External Cluster‑Scheduling Controller for Materialize
+# External Cluster Controller for Materialize
 
 ## 1. Scope & Assumptions
 
@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS mz_cluster_strategy_actions (
 ## 3. CLI Surface
 
 ```
-mz‑schedctl plan        # read-only dry‑run (prints SQL actions)
-mz‑schedctl apply       # executes actions, writes audit log
-mz‑schedctl wipe-state  # optional helper to clear mz_cluster_strategy_state
+mz‑clusterctl plan        # read-only dry‑run (prints SQL actions)
+mz‑clusterctl apply       # executes actions, writes audit log
+mz‑clusterctl wipe-state  # optional helper to clear mz_cluster_strategy_state
 Common flags:
   --cluster <name-regex>   # limit to subset of clusters
   --verbose/-v             # debug logging (-v for debug, -vv for trace)
@@ -61,7 +61,7 @@ Common flags:
 ## 4. Python Package Layout
 
 ```
-mz_schedctl/
+mz_clusterctl/
  ├─ __main__.py          # CLI entry point with argparse and mode dispatch
  ├─ db.py                # PostgreSQL connection pool + database helpers
  ├─ models.py            # @dataclass StrategyState, ReplicaSpec, Action, etc.
@@ -144,5 +144,5 @@ State stored: `{"last_decision_ts": "...", "pending_target_replica": {"name": ".
 
 1. `uv sync` (installs dependencies and sets up development environment).
 2. `cp .env.example .env` ➜ adjust `DATABASE_URL`.
-3. `uv run mz-schedctl plan --verbose`
-4. Verify SQL, then `uv run mz-schedctl apply`
+3. `uv run mz-clusterctl plan --verbose`
+4. Verify SQL, then `uv run mz-clusterctl apply`

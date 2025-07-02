@@ -1,5 +1,5 @@
 """
-Target size strategy for mz-schedctl
+Target size strategy for mz-clusterctl
 
 Strategy that ensures a cluster has a replica of a specific target size.
 If the target size replica doesn't exist, it creates one.

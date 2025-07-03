@@ -132,15 +132,15 @@ class IdleSuspendStrategy(Strategy):
             reason = ""
 
             if signals.seconds_since_activity is None:
-                # No activity recorded - could mean cluster has never been used
-                # or activity tracking isn't working. Be conservative and don't suspend.
+                # No activity recorded - suspend as it indicates no recent activity
+                should_suspend = True
+                reason = "No activity data available - suspending cluster"
                 logger.info(
-                    "No activity data available, not suspending",
+                    "No activity data available, suspending cluster",
                     extra={"cluster_id": signals.cluster_id},
                 )
-                return desired, current_state
 
-            if signals.seconds_since_activity > idle_after_s:
+            elif signals.seconds_since_activity > idle_after_s:
                 should_suspend = True
                 reason = (
                     f"Idle for {signals.seconds_since_activity:.0f}s "
@@ -159,6 +159,7 @@ class IdleSuspendStrategy(Strategy):
                         "idle_seconds": signals.seconds_since_activity,
                         "threshold": idle_after_s,
                         "replicas_to_remove": current_replicas,
+                        "reason": reason,
                     },
                 )
 
@@ -194,7 +195,7 @@ class IdleSuspendStrategy(Strategy):
                 new_payload["last_suspend"] = {
                     "timestamp": datetime.utcnow().isoformat(),
                     "replicas_removed": replicas_removed,
-                    "reason": reason if should_suspend else "unknown",
+                    "reason": reason,
                     "suspended_replicas": suspended_replicas,
                 }
 

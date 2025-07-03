@@ -143,18 +143,19 @@ class DesiredState:
     target_replicas: dict[str, ReplicaSpec] = field(default_factory=dict)
     priority: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
 
     def add_replica(self, replica: ReplicaSpec, reason: str = "") -> None:
         """Add a replica to the desired state"""
         self.target_replicas[replica.name] = replica
         if reason:
-            print(f"Adding replica {replica.name}: {reason}")
+            self.reasons.append(f"Adding replica {replica.name}: {reason}")
 
     def remove_replica(self, replica_name: str, reason: str = "") -> None:
         """Remove a replica from the desired state"""
         self.target_replicas.pop(replica_name, None)
         if reason:
-            print(f"Removing replica {replica_name}: {reason}")
+            self.reasons.append(f"Removing replica {replica_name}: {reason}")
 
     def has_replica(self, replica_name: str) -> bool:
         """Check if a replica is in the desired state"""

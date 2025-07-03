@@ -112,6 +112,13 @@ class StateDiffer:
                     },
                 )
 
+        # Print accumulated reasons if there are actions to take (state differs)
+        if actions and desired.reasons:
+            print("Reasons for changes:")
+            for reason in desired.reasons:
+                print(f"  - {reason}")
+            print("")
+
         return actions
 
 class StrategyCoordinator:

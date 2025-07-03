@@ -45,22 +45,27 @@ class IdleSuspendStrategy(Strategy):
         config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
+        current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make idle suspend decisions"""
         self.validate_config(config)
 
         now = datetime.utcnow()
 
-        # Create desired state starting with current replicas
+        # Create desired state starting with previous desired state or current replicas
         desired = DesiredState(
             cluster_id=cluster_info.id,
             strategy_type=current_state.strategy_type,
-            priority=1,  # Default priority
+            priority=self.get_priority(),
         )
 
-        # Start with current replicas
-        for replica in cluster_info.replicas:
-            desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
+        # Start with previous desired state if available, otherwise current replicas
+        if current_desired_state:
+            desired.target_replicas = current_desired_state.target_replicas.copy()
+        else:
+            # Start with current replicas
+            for replica in cluster_info.replicas:
+                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
 
         # Check cooldown period (optional)
         cooldown_s = config.get("cooldown_s", 0)
@@ -81,7 +86,7 @@ class IdleSuspendStrategy(Strategy):
                     return desired, current_state
 
         idle_after_s = config["idle_after_s"]
-        current_replicas = len(cluster_info.replicas)
+        current_replicas = len(desired.target_replicas)
         last_suspend_info = current_state.payload.get("last_suspend")
 
         logger.debug(
@@ -112,7 +117,8 @@ class IdleSuspendStrategy(Strategy):
                         replica_spec = ReplicaSpec(name=replica_name, size=replica_size)
                         desired.add_replica(
                             replica_spec,
-                            f"Recreating replica due to recent activity ({signals.seconds_since_activity:.0f}s ago)",
+                            f"Recreating replica due to recent activity "
+                            f"({signals.seconds_since_activity:.0f}s ago)",
                         )
 
                 if len(desired.get_replica_names()) > 0:
@@ -149,11 +155,12 @@ class IdleSuspendStrategy(Strategy):
 
             if should_suspend:
                 # Remove all replicas from desired state
-                for replica in cluster_info.replicas:
-                    desired.remove_replica(replica.name, reason)
+                for replica_name in list(desired.target_replicas.keys()):
+                    desired.remove_replica(replica_name, reason)
 
                 logger.info(
-                    "Removing all replicas from desired state (suspending idle cluster)",
+                    "Removing all replicas from desired state "
+                    "(suspending idle cluster)",
                     extra={
                         "cluster_id": signals.cluster_id,
                         "idle_seconds": signals.seconds_since_activity,
@@ -167,28 +174,51 @@ class IdleSuspendStrategy(Strategy):
         new_payload = current_state.payload.copy()
 
         # Check if we made any changes to the desired state
-        current_replica_names = {r.name for r in cluster_info.replicas}
+        initial_replica_names = (
+            current_desired_state.get_replica_names()
+            if current_desired_state
+            else {r.name for r in cluster_info.replicas}
+        )
         desired_replica_names = desired.get_replica_names()
-        changes_made = current_replica_names != desired_replica_names
+        changes_made = initial_replica_names != desired_replica_names
 
         # Update last decision timestamp if any changes were made
         if changes_made:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
             # Track replica changes
-            replicas_added = len(desired_replica_names - current_replica_names)
-            replicas_removed = len(current_replica_names - desired_replica_names)
+            replicas_added = len(desired_replica_names - initial_replica_names)
+            replicas_removed = len(initial_replica_names - desired_replica_names)
 
             # Record suspend event
             if replicas_removed > 0:
                 # Store detailed information about each suspended replica
                 suspended_replicas = []
-                for replica in cluster_info.replicas:
-                    if replica.name not in desired_replica_names:
+                for replica_name in initial_replica_names:
+                    if replica_name not in desired_replica_names:
+                        # Find the replica size from the previous desired state
+                        # or current cluster
+                        if (
+                            current_desired_state
+                            and replica_name in current_desired_state.target_replicas
+                        ):
+                            replica_size = current_desired_state.target_replicas[
+                                replica_name
+                            ].size
+                        else:
+                            # Fall back to current cluster info
+                            replica_size = next(
+                                (
+                                    r.size
+                                    for r in cluster_info.replicas
+                                    if r.name == replica_name
+                                ),
+                                "unknown",
+                            )
                         suspended_replicas.append(
                             {
-                                "name": replica.name,
-                                "size": replica.size,
+                                "name": replica_name,
+                                "size": replica_size,
                             }
                         )
 
@@ -222,3 +252,9 @@ class IdleSuspendStrategy(Strategy):
             "cluster_name": None,  # Will be populated by engine
         }
         return state
+
+    @classmethod
+    def get_priority(cls) -> int:
+        """Idle suspend strategy has highest priority (3) -
+        suspension trumps other strategies"""
+        return 3

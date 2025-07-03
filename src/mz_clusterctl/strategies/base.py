@@ -15,7 +15,7 @@ class Strategy(ABC):
     Abstract base class for all scaling strategies
 
     Strategies implement the core decision logic for cluster scaling.
-    Each strategy receives the current state, configuration, and signals,
+    Each strategy receives the current state, the current desired state (as decided but potentially other strategies that come first in the priority order), configuration, and signals,
     then returns a list of actions to be executed.
     """
 
@@ -28,6 +28,7 @@ class Strategy(ABC):
         config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
+        current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """
         Make scaling decisions by returning desired state
@@ -37,6 +38,8 @@ class Strategy(ABC):
             config: Strategy configuration from mz_cluster_strategies table
             signals: Activity and hydration signals for the cluster
             cluster_info: Information about the cluster including current replicas
+            current_desired_state: The desired state from the previous strategy in
+                                  priority order, or None if this is the first strategy
 
         Returns:
             Tuple of (desired state, new strategy state to be persisted)
@@ -86,3 +89,16 @@ class Strategy(ABC):
             ValueError: If configuration is invalid
         """
         pass
+
+    @classmethod
+    def get_priority(cls) -> int:
+        """
+        Get the priority for this strategy type
+
+        Lower numbers = lower priority (processed first)
+        Default priority is 0
+
+        Returns:
+            Priority value for this strategy
+        """
+        return 0

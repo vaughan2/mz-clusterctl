@@ -211,11 +211,18 @@ class StrategyCoordinator:
         Returns:
             Tuple of (actions to execute, updated strategy states)
         """
-        desired_states = []
         new_states = {}
 
-        # Run each strategy to get its desired state
-        for strategy, config in strategies_and_configs:
+        # Sort strategies by priority (lower number = lower priority, meaning
+        # lower numbers get processed first)
+        sorted_strategies = sorted(
+            strategies_and_configs, key=lambda x: x[0].get_priority()
+        )
+
+        # Process strategies in priority order, feeding output to next strategy
+        current_desired_state = None
+
+        for strategy, config in sorted_strategies:
             strategy_type = config.get("strategy_type", strategy.__class__.__name__)
             current_state = strategy_states.get(strategy_type)
 
@@ -224,10 +231,20 @@ class StrategyCoordinator:
 
             try:
                 desired_state, new_state = strategy.decide_desired_state(
-                    current_state, config, signals, cluster_info
+                    current_state, config, signals, cluster_info, current_desired_state
                 )
-                desired_states.append(desired_state)
+                current_desired_state = desired_state
                 new_states[strategy_type] = new_state
+
+                logger.debug(
+                    "Strategy processed in priority order",
+                    extra={
+                        "strategy_type": strategy_type,
+                        "cluster_id": cluster_info.id,
+                        "priority": strategy.get_priority(),
+                        "replicas_count": len(desired_state.target_replicas),
+                    },
+                )
 
             except Exception as e:
                 logger.error(
@@ -241,25 +258,19 @@ class StrategyCoordinator:
                 )
                 continue
 
-        if not desired_states:
+        if current_desired_state is None:
             return [], new_states
 
-        # Resolve conflicts between desired states
-        combined_desired = self.resolver.resolve(
-            desired_states, self.conflict_resolution
-        )
-
-        # Generate actions from combined desired state
-        actions = self.differ.generate_actions(combined_desired, cluster_info)
+        # Generate actions from final desired state
+        actions = self.differ.generate_actions(current_desired_state, cluster_info)
 
         logger.info(
             "Strategy coordination completed",
             extra={
                 "cluster_id": cluster_info.id,
-                "strategies_run": len(strategies_and_configs),
-                "desired_states_count": len(desired_states),
+                "strategies_run": len(sorted_strategies),
                 "actions_generated": len(actions),
-                "conflict_resolution": self.conflict_resolution.value,
+                "final_replicas_count": len(current_desired_state.target_replicas),
             },
         )
 

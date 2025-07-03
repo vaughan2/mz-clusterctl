@@ -49,6 +49,7 @@ class TargetSizeStrategy(Strategy):
         config: dict[str, Any],
         signals: Signals,
         cluster_info: ClusterInfo,
+        current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make target size decisions"""
         self.validate_config(config)
@@ -57,16 +58,20 @@ class TargetSizeStrategy(Strategy):
         target_size = config["target_size"]
         replica_name = config.get("replica_name", f"r_{target_size}")
 
-        # Create desired state starting with current replicas
+        # Create desired state starting with previous desired state or current replicas
         desired = DesiredState(
             cluster_id=cluster_info.id,
             strategy_type=current_state.strategy_type,
-            priority=1,  # Default priority
+            priority=self.get_priority(),
         )
 
-        # Start with current replicas
-        for replica in cluster_info.replicas:
-            desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
+        # Start with previous desired state if available, otherwise current replicas
+        if current_desired_state:
+            desired.target_replicas = current_desired_state.target_replicas.copy()
+        else:
+            # Start with current replicas
+            for replica in cluster_info.replicas:
+                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
 
         # Find current replicas by size
         current_replicas = list(cluster_info.replicas)
@@ -119,7 +124,8 @@ class TargetSizeStrategy(Strategy):
                 for replica in other_size_replicas:
                     desired.remove_replica(
                         replica.name,
-                        f"Dropping non-target size replica ({replica.size}) - target size replica is hydrated",
+                        f"Dropping non-target size replica ({replica.size}) - "
+                        f"target size replica is hydrated",
                     )
 
                 logger.info(
@@ -150,11 +156,13 @@ class TargetSizeStrategy(Strategy):
             replica_spec = ReplicaSpec(name=replica_name, size=target_size)
             desired.add_replica(
                 replica_spec,
-                f"Recreating target size replica ({target_size}) - pending replica not found",
+                f"Recreating target size replica ({target_size}) - "
+                f"pending replica not found",
             )
 
             logger.info(
-                "Adding target size replica to desired state (pending replica not found)",
+                "Adding target size replica to desired state "
+                "(pending replica not found)",
                 extra={
                     "cluster_id": signals.cluster_id,
                     "target_size": target_size,
@@ -208,3 +216,8 @@ class TargetSizeStrategy(Strategy):
             "pending_target_replica": None,  # Will contain name/size info when creating
         }
         return state
+
+    @classmethod
+    def get_priority(cls) -> int:
+        """Target size strategy has lowest priority (1)"""
+        return 1

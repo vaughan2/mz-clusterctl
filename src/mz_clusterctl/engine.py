@@ -151,13 +151,13 @@ class Engine:
             configs = configs_by_cluster[cluster.id]
 
             # Always use coordinator approach
-            actions_by_cluster[cluster] = self._run_coordinated_strategies(
+            actions_by_cluster[cluster] = self._run_strategies(
                 cluster, configs, dry_run
             )
 
         return actions_by_cluster
 
-    def _run_coordinated_strategies(
+    def _run_strategies(
         self, cluster: ClusterInfo, configs: list[StrategyConfig], dry_run: bool
     ) -> list[Action]:
         """Run strategies using the coordinator approach"""
@@ -204,13 +204,12 @@ class Engine:
             with self.db.get_connection() as conn:
                 signals = get_cluster_signals(conn, cluster.id, cluster.name)
             logger.info(
-                "Cluster signals retrieved for coordination",
+                "Cluster signals retrieved",
                 extra={"cluster_id": cluster.id, "signals": str(signals)},
             )
 
-            # Coordinate strategies
             logger.info(
-                "Running coordinated strategies",
+                "Running strategies",
                 extra={
                     "cluster_id": cluster.id,
                     "strategies_count": len(strategies_and_configs),
@@ -220,19 +219,11 @@ class Engine:
                 strategies_and_configs, cluster, signals, strategy_states
             )
 
-            logger.debug(
-                "Coordination completed",
-                extra={
-                    "cluster_id": cluster.id,
-                    "actions_count": len(actions),
-                },
-            )
-
             # Persist states (if not dry run)
             if not dry_run:
                 for strategy_type, new_state in new_states.items():
                     logger.debug(
-                        "Persisting coordinated state",
+                        "Persisting state",
                         extra={
                             "cluster_id": cluster.id,
                             "strategy_type": strategy_type,
@@ -245,7 +236,7 @@ class Engine:
 
         except Exception as e:
             logger.error(
-                "Error processing coordinated strategies",
+                "Error processing strategies",
                 extra={
                     "cluster_id": cluster.id,
                     "cluster_name": cluster.name,

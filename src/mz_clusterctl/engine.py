@@ -5,7 +5,7 @@ Coordinates the decision cycle: loading configurations, running strategies,
 and executing actions.
 """
 
-from .coordinator import ConflictResolution, StrategyCoordinator
+from .coordinator import StrategyCoordinator
 from .db import Database
 from .executor import Executor
 from .log import get_logger
@@ -33,7 +33,7 @@ class Engine:
         self.cluster_filter = cluster_filter
         self.db = Database(database_url)
         self.executor = Executor(self.db)
-        self.coordinator = StrategyCoordinator(ConflictResolution.PRIORITY)
+        self.coordinator = StrategyCoordinator()
 
     def __enter__(self):
         self.db.__enter__()

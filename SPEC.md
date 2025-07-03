@@ -66,7 +66,7 @@ mz_clusterctl/
  ├─ db.py                # PostgreSQL connection pool + database helpers
  ├─ models.py            # @dataclass StrategyState, ReplicaSpec, Action, DesiredState, etc.
  ├─ signals.py           # queries for activity, hydration, and cluster metrics
- ├─ coordinator.py       # multi-strategy coordination: StateDiffer, ConflictResolution
+ ├─ coordinator.py       # multi-strategy coordination: StateDiffer
  ├─ strategies/
  │    ├─ __init__.py     # strategy registry: STRATEGY_REGISTRY dict
  │    ├─ base.py         # Strategy interface: decide_desired_state()

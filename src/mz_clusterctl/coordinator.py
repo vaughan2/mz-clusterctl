@@ -5,7 +5,6 @@ Coordinates multiple strategies by combining their desired states and resolving
 conflicts.
 """
 
-from enum import Enum
 from typing import Any
 
 from .log import get_logger
@@ -18,12 +17,6 @@ from .models import (
 )
 
 logger = get_logger(__name__)
-
-
-class ConflictResolution(Enum):
-    """Conflict resolution strategies"""
-
-    PRIORITY = "priority"  # Higher priority wins
 
 
 class StateDiffer:
@@ -121,13 +114,11 @@ class StateDiffer:
 
         return actions
 
+
 class StrategyCoordinator:
     """Coordinates multiple strategies for a single cluster"""
 
-    def __init__(
-        self, conflict_resolution: ConflictResolution = ConflictResolution.PRIORITY
-    ):
-        self.conflict_resolution = conflict_resolution
+    def __init__(self):
         self.differ = StateDiffer()
 
     def coordinate(

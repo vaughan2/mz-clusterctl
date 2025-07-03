@@ -54,17 +54,15 @@ class BurstStrategy(Strategy):
 
         now = datetime.utcnow()
 
-        # Create desired state starting with previous desired state or current replicas
-        desired = DesiredState(
-            cluster_id=cluster_info.id,
-            strategy_type=current_state.strategy_type,
-            priority=self.get_priority(),
-        )
-
         # Start with previous desired state if available, otherwise current replicas
         if current_desired_state:
-            desired.target_replicas = current_desired_state.target_replicas.copy()
+            desired = current_desired_state
         else:
+            desired = DesiredState(
+                cluster_id=cluster_info.id,
+                strategy_type=current_state.strategy_type,
+                priority=self.get_priority(),
+            )
             # Start with current replicas
             for replica in cluster_info.replicas:
                 desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))

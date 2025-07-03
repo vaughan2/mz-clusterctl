@@ -45,7 +45,6 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=f"DROP CLUSTER REPLICA {current_cluster.name}.{replica_name}",
-                    reason=f"Removing replica not in desired state: {desired.reason}",
                     expected_state_delta={"replicas_removed": 1},
                 )
             )
@@ -65,7 +64,6 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=replica_spec.to_create_sql(current_cluster.name),
-                    reason=f"Adding replica for desired state: {desired.reason}",
                     expected_state_delta={"replicas_added": 1},
                 )
             )
@@ -94,17 +92,12 @@ class StateDiffer:
                             f"DROP CLUSTER REPLICA "
                             f"{current_cluster.name}.{replica_name}"
                         ),
-                        reason=(
-                            f"Updating replica size from {current_replica.size} to "
-                            f"{desired_replica.size}: {desired.reason}"
-                        ),
                         expected_state_delta={"replicas_removed": 1},
                     )
                 )
                 actions.append(
                     Action(
                         sql=desired_replica.to_create_sql(current_cluster.name),
-                        reason=f"Recreating replica with new size: {desired.reason}",
                         expected_state_delta={"replicas_added": 1},
                     )
                 )

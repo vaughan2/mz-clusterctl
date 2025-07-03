@@ -65,7 +65,6 @@ class Engine:
 
                 for i, action in enumerate(actions, 1):
                     print(f"{i}. {action.sql}")
-                    print(f"   Reason: {action.reason}")
                     if action.expected_state_delta:
                         print(f"   Expected changes: {action.expected_state_delta}")
                     print()

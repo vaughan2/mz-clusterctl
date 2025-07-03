@@ -59,7 +59,6 @@ class Executor:
                     extra={
                         "cluster_id": cluster_id,
                         "action_sql": action.sql,
-                        "action_reason": action.reason,
                     },
                 )
 
@@ -67,7 +66,6 @@ class Executor:
                 decision_ctx = {
                     "action_index": i,
                     "total_actions": len(actions),
-                    "reason": action.reason,
                     "expected_state_delta": action.expected_state_delta,
                 }
 
@@ -84,7 +82,6 @@ class Executor:
                 decision_ctx["execution_result"] = result
 
                 print(f"✓ {action.sql}")
-                print(f"  Reason: {action.reason}")
                 if result.get("rowcount", 0) > 0:
                     print(f"  Affected rows: {result['rowcount']}")
                 print()
@@ -109,13 +106,11 @@ class Executor:
                 decision_ctx = {
                     "action_index": i,
                     "total_actions": len(actions),
-                    "reason": action.reason,
                     "expected_state_delta": action.expected_state_delta,
                     "error": error_message,
                 }
 
                 print(f"✗ {action.sql}")
-                print(f"  Reason: {action.reason}")
                 print(f"  Error: {error_message}")
                 print()
 

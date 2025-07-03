@@ -84,7 +84,6 @@ class IdleSuspendStrategy(Strategy):
                             - (now - last_decision).total_seconds(),
                         },
                     )
-                    desired.reason = "In cooldown period"
                     return desired, current_state
 
         idle_after_s = config["idle_after_s"]

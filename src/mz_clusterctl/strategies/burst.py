@@ -83,7 +83,6 @@ class BurstStrategy(Strategy):
                         - (now - last_decision).total_seconds(),
                     },
                 )
-                desired.reason = "In cooldown period"
                 return desired, current_state
 
         # Main burst logic: manage burst replica based on hydration status

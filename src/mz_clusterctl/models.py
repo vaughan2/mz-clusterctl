@@ -41,11 +41,10 @@ class Action:
     """Represents an action to be taken on a cluster"""
 
     sql: str
-    reason: str
     expected_state_delta: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
-        return f"{self.sql} -- {self.reason}"
+        return self.sql
 
 
 @dataclass(frozen=True)
@@ -143,20 +142,19 @@ class DesiredState:
     strategy_type: str
     target_replicas: dict[str, ReplicaSpec] = field(default_factory=dict)
     priority: int = 0
-    reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def add_replica(self, replica: ReplicaSpec, reason: str = "") -> None:
         """Add a replica to the desired state"""
         self.target_replicas[replica.name] = replica
-        if reason and not self.reason:
-            self.reason = reason
+        if reason:
+            print(f"Adding replica {replica.name}: {reason}")
 
     def remove_replica(self, replica_name: str, reason: str = "") -> None:
         """Remove a replica from the desired state"""
         self.target_replicas.pop(replica_name, None)
-        if reason and not self.reason:
-            self.reason = reason
+        if reason:
+            print(f"Removing replica {replica_name}: {reason}")
 
     def has_replica(self, replica_name: str) -> bool:
         """Check if a replica is in the desired state"""

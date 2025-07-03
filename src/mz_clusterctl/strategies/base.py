@@ -15,8 +15,9 @@ class Strategy(ABC):
     Abstract base class for all scaling strategies
 
     Strategies implement the core decision logic for cluster scaling.
-    Each strategy receives the current state, the current desired state (as decided but potentially other strategies that come first in the priority order), configuration, and signals,
-    then returns a list of actions to be executed.
+    Each strategy receives the current state, the current desired state (as decided
+    but potentially other strategies that come first in the priority order),
+    configuration, and signals, then returns a list of actions to be executed.
     """
 
     CURRENT_STATE_VERSION = 1

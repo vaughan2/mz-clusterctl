@@ -1,7 +1,8 @@
 """
-Idle suspend strategy for mz-clusterqctl
+Idle suspend strategy for mz-clusterctl
 
 Simple strategy that suspends cluster replicas after a period of inactivity.
+Replica recreation is handled by the target_size strategy when combined.
 """
 
 from datetime import datetime
@@ -21,8 +22,9 @@ class IdleSuspendStrategy(Strategy):
     This strategy:
     1. Monitors cluster activity
     2. Suspends all replicas after a configured idle period
-    3. Automatically recreates replicas when recent activity is detected
-    4. Respects cooldown periods to avoid repeated suspend attempts
+    3. Respects cooldown periods to avoid repeated suspend attempts
+
+    Note: Replica recreation is handled by the target_size strategy when combined.
     """
 
     def validate_config(self, config: dict[str, Any]) -> None:
@@ -87,53 +89,19 @@ class IdleSuspendStrategy(Strategy):
 
         idle_after_s = config["idle_after_s"]
         current_replicas = len(desired.target_replicas)
-        last_suspend_info = current_state.payload.get("last_suspend")
 
         logger.debug(
-            "Deciding on suspension or re-creation",
+            "Deciding on suspension",
             extra={
                 "cluster_id": signals.cluster_id,
                 "seconds_since_activity": signals.seconds_since_activity,
                 "threshold": idle_after_s,
-                "last_suspended_info": last_suspend_info,
+                "current_replicas": current_replicas,
             },
         )
 
-        # Check if we should recreate replicas due to recent activity
-        if current_replicas == 0 and last_suspend_info:
-            # Cluster is currently suspended, check if we should recreate replicas
-            if (
-                signals.seconds_since_activity is not None
-                and signals.seconds_since_activity < idle_after_s
-            ):
-                # Recent activity detected, recreate the suspended replicas
-                suspended_replicas = last_suspend_info.get("suspended_replicas", [])
-
-                for replica_info in suspended_replicas:
-                    replica_name = replica_info["name"]
-                    replica_size = replica_info["size"]
-
-                    if replica_size:  # Only recreate if we have size info
-                        replica_spec = ReplicaSpec(name=replica_name, size=replica_size)
-                        desired.add_replica(
-                            replica_spec,
-                            f"Recreating replica due to recent activity "
-                            f"({signals.seconds_since_activity:.0f}s ago)",
-                        )
-
-                if len(desired.get_replica_names()) > 0:
-                    logger.info(
-                        "Adding replicas to desired state due to recent activity",
-                        extra={
-                            "cluster_id": signals.cluster_id,
-                            "seconds_since_activity": signals.seconds_since_activity,
-                            "threshold": idle_after_s,
-                            "replicas_to_recreate": len(suspended_replicas),
-                        },
-                    )
-
         # Check if cluster is idle and has replicas to suspend
-        elif current_replicas > 0:
+        if current_replicas > 0:
             should_suspend = False
             reason = ""
 
@@ -186,53 +154,6 @@ class IdleSuspendStrategy(Strategy):
         if changes_made:
             new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
 
-            # Track replica changes
-            replicas_added = len(desired_replica_names - initial_replica_names)
-            replicas_removed = len(initial_replica_names - desired_replica_names)
-
-            # Record suspend event
-            if replicas_removed > 0:
-                # Store detailed information about each suspended replica
-                suspended_replicas = []
-                for replica_name in initial_replica_names:
-                    if replica_name not in desired_replica_names:
-                        # Find the replica size from the previous desired state
-                        # or current cluster
-                        if (
-                            current_desired_state
-                            and replica_name in current_desired_state.target_replicas
-                        ):
-                            replica_size = current_desired_state.target_replicas[
-                                replica_name
-                            ].size
-                        else:
-                            # Fall back to current cluster info
-                            replica_size = next(
-                                (
-                                    r.size
-                                    for r in cluster_info.replicas
-                                    if r.name == replica_name
-                                ),
-                                "unknown",
-                            )
-                        suspended_replicas.append(
-                            {
-                                "name": replica_name,
-                                "size": replica_size,
-                            }
-                        )
-
-                new_payload["last_suspend"] = {
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "replicas_removed": replicas_removed,
-                    "reason": reason,
-                    "suspended_replicas": suspended_replicas,
-                }
-
-            # Clear suspend info when replicas are recreated
-            if replicas_added > 0:
-                new_payload["last_suspend"] = None
-
         next_state = StrategyState(
             cluster_id=current_state.cluster_id,
             strategy_type=current_state.strategy_type,
@@ -248,8 +169,6 @@ class IdleSuspendStrategy(Strategy):
         state = super().initial_state(cluster_id, strategy_type)
         state.payload = {
             "last_decision_ts": None,
-            "last_suspend": None,  # Will contain suspended_replicas list with name/size
-            "cluster_name": None,  # Will be populated by engine
         }
         return state
 

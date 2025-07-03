@@ -89,6 +89,7 @@ class Engine:
 
                 print(f"\nProcessing cluster: {cluster_info.name}")
                 self.executor.execute_actions(cluster_info.id, actions)
+                print()
 
     def wipe_state(self):
         """Clear strategy state table"""

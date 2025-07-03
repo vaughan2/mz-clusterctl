@@ -84,7 +84,6 @@ class Executor:
                 print(f"✓ {action.sql}")
                 if result.get("rowcount", 0) > 0:
                     print(f"  Affected rows: {result['rowcount']}")
-                print()
 
                 logger.info(
                     "Action executed successfully",

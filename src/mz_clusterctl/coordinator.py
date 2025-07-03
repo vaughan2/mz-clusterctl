@@ -114,65 +114,6 @@ class StateDiffer:
 
         return actions
 
-
-class ConflictResolver:
-    """Resolves conflicts between multiple desired states"""
-
-    def resolve(
-        self, desired_states: list[DesiredState], resolution: ConflictResolution
-    ) -> DesiredState:
-        """Resolve conflicts between multiple desired states"""
-        if not desired_states:
-            # Return empty desired state
-            return DesiredState(cluster_id="", strategy_type="empty")
-
-        if len(desired_states) == 1:
-            return desired_states[0]
-
-        cluster_id = desired_states[0].cluster_id
-
-        if resolution == ConflictResolution.PRIORITY:
-            return self._resolve_by_priority(desired_states, cluster_id)
-        else:
-            raise ValueError(f"Unknown conflict resolution: {resolution}")
-
-    def _resolve_by_priority(
-        self, desired_states: list[DesiredState], cluster_id: str
-    ) -> DesiredState:
-        """Resolve by priority - higher priority strategies win"""
-        # Sort by priority (highest first)
-        sorted_states = sorted(desired_states, key=lambda s: s.priority, reverse=True)
-
-        result = DesiredState(
-            cluster_id=cluster_id,
-            strategy_type="priority_composite",
-            priority=max(s.priority for s in desired_states),
-        )
-
-        # Start with highest priority strategy
-        highest_priority = sorted_states[0]
-        result.target_replicas = highest_priority.target_replicas.copy()
-        result.reason = highest_priority.reason
-
-        # Add replicas from lower priority strategies if they don't conflict
-        for state in sorted_states[1:]:
-            for replica_name, replica_spec in state.target_replicas.items():
-                if replica_name not in result.target_replicas:
-                    result.target_replicas[replica_name] = replica_spec
-
-        logger.info(
-            "Resolved conflicts using priority strategy",
-            extra={
-                "cluster_id": cluster_id,
-                "strategies_count": len(desired_states),
-                "final_replicas_count": len(result.target_replicas),
-                "highest_priority": highest_priority.priority,
-            },
-        )
-
-        return result
-
-
 class StrategyCoordinator:
     """Coordinates multiple strategies for a single cluster"""
 
@@ -180,7 +121,6 @@ class StrategyCoordinator:
         self, conflict_resolution: ConflictResolution = ConflictResolution.PRIORITY
     ):
         self.conflict_resolution = conflict_resolution
-        self.resolver = ConflictResolver()
         self.differ = StateDiffer()
 
     def coordinate(

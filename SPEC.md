@@ -64,11 +64,12 @@ Common flags:
 mz_clusterctl/
  ├─ __main__.py          # CLI entry point with argparse and mode dispatch
  ├─ db.py                # PostgreSQL connection pool + database helpers
- ├─ models.py            # @dataclass StrategyState, ReplicaSpec, Action, etc.
+ ├─ models.py            # @dataclass StrategyState, ReplicaSpec, Action, DesiredState, etc.
  ├─ signals.py           # queries for activity, hydration, and cluster metrics
+ ├─ coordinator.py       # multi-strategy coordination: StateDiffer, ConflictResolution
  ├─ strategies/
  │    ├─ __init__.py     # strategy registry: STRATEGY_REGISTRY dict
- │    ├─ base.py         # Strategy interface: decide(state, signals) -> (Action[], new_state)
+ │    ├─ base.py         # Strategy interface: decide_desired_state()
  │    ├─ target_size.py  # aka. 0dt reconfiguration
  │    ├─ burst.py        # auto-scaling strategy with cooldown and idle shutdown
  │    └─ idle_suspend.py # idle cluster suspend/resume strategy
@@ -94,12 +95,21 @@ mz_clusterctl/
    * Pull prior row from `mz_cluster_strategy_state` ➜ deserialize to `StrategyState`.
    * If missing or `state_version` mismatch → start fresh.
 
-3. **Run Strategies**
+3. **Run Strategies (Desired State + Conflict Resolution)**
 
-   * `strategy_cls.decide(current_state, config, signals, cluster_info) -> (List[Action], new_state)`
+   * Run strategies;
+     * Sort strategies by priority (lowest first).
+     * Each strategy implements `decide_desired_state(current_desired_state, state, config, signals, cluster_info) -> (DesiredState, new_state)`
+     * Pass the accumulated desired state from previous strategies to the next strategy.
+     * Higher priority strategies can override or modify decisions from lower priority strategies.
 
-     * *Action* = dataclass (`sql:str`, `reason:str`, `cluster_id:str`).
-   * Strategies run **independently**; engine coordinates execution and state updates.
+   * **DesiredState** = dataclass containing:
+     * `target_replicas: dict[str, ReplicaSpec]` - exact replicas that should exist
+     * `priority: int` - for conflict resolution
+     * `reason: str` - human-readable explanation
+     * `metadata: dict[str, Any]` - strategy-specific data
+
+   * **StateDiffer** converts desired state to actions by comparing with current cluster state.
 
 4. **Plan vs. Apply**
 
@@ -140,7 +150,59 @@ State stored: `{"last_decision_ts": "...", "pending_target_replica": {"name": ".
 * **Error Handling**: Fail-fast approach with detailed error logging and rollback capability.
 * **State Versioning**: Handles schema evolution with version compatibility checks.
 
-## 8. Local Development Workflow
+## 8. Multi-Strategy Configuration
+
+### Overview
+
+The system supports multiple strategies per cluster using the **Desired State + Conflict Resolution** pattern. Strategies declare their desired replica configuration, and conflicts are resolved by priority.
+
+### Configuration
+
+Insert multiple rows in `mz_cluster_strategies` for the same cluster:
+
+```sql
+-- Example: Target size baseline + burst scaling + idle suspend
+INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES 
+('cluster-123', 'target_size', '{"target_size": "medium"}'),
+('cluster-123', 'burst', '{"burst_replica_size": "large", "cooldown_s": 60}'),
+('cluster-123', 'idle_suspend', '{"idle_after_s": 1800}');
+```
+
+### Conflict Resolution
+
+- **PRIORITY**: Higher priority strategies override lower priority ones
+- Strategies run in priority order (lowest first)
+- Later strategies receive the accumulated desired state from previous strategies
+- Strategies can modify, extend, or completely override previous decisions
+
+### Example Combinations
+
+**Aggressive Auto-scaling:**
+```sql
+-- Baseline + burst + idle suspend
+INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES 
+('cluster-123', 'target_size', '{"target_size": "small"}'),
+('cluster-123', 'burst', '{"burst_replica_size": "xlarge", "cooldown_s": 60}'),
+('cluster-123', 'idle_suspend', '{"idle_after_s": 3600}');
+```
+
+**Conservative Approach:**
+```sql
+-- Just idle suspend + baseline size
+INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES 
+('cluster-123', 'target_size', '{"target_size": "medium"}'),
+('cluster-123', 'idle_suspend', '{"idle_after_s": 1800}');
+```
+
+### Behavior Example: Target Size + Burst
+
+1. **Target Size Strategy** (priority 0): Declares medium replica should exist
+2. **Burst Strategy** (priority 1): Receives desired state with medium replica
+   - If medium replica is not hydrated → adds large burst replica
+   - If medium replica is hydrated → removes burst replica
+3. **Result**: Maintains medium replica as baseline, adds burst when needed
+
+## 9. Local Development Workflow
 
 1. `uv sync` (installs dependencies and sets up development environment).
 2. `cp .env.example .env` ➜ adjust `DATABASE_URL`.

@@ -91,6 +91,18 @@ class Database:
                 cur.execute(sql)
                 conn.commit()
 
+        # Grant permissions on tables to materialize user
+        grant_statements = [
+            "GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_state TO materialize",
+            "GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_actions TO materialize",  # noqa: E501
+            "GRANT SELECT, INSERT, DELETE ON mz_cluster_strategies TO materialize",
+        ]
+
+        for grant_sql in grant_statements:
+            with self.get_connection() as conn, conn.cursor() as cur:
+                cur.execute(grant_sql)
+                conn.commit()
+
         logger.debug("Database tables ensured")
 
     def get_clusters(self, name_filter: str | None = None) -> list[ClusterInfo]:

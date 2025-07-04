@@ -103,11 +103,24 @@ class BurstStrategy(Strategy):
             for replica_name in desired.target_replicas
         )
 
-        if has_other_replicas and not other_replicas_hydrated and not has_burst_replica:
+        # Check if there's already a  desired replica with the same size as the
+        # burst replica
+        has_replica_with_burst_size = any(
+            replica.size == burst_replica_size
+            for _name, replica in desired.target_replicas.items()
+        )
+
+        if (
+            has_other_replicas
+            and not other_replicas_hydrated
+            and not has_burst_replica
+            and not has_replica_with_burst_size
+        ):
             # Add burst replica when other replicas exist but none are hydrated
             burst_spec = ReplicaSpec(name=burst_replica_name, size=burst_replica_size)
             desired.add_replica(
-                burst_spec, "Creating burst replica - no other replicas are hydrated"
+                burst_spec,
+                "Creating burst replica - no hydrated or burst-sized replicas",
             )
 
             logger.info(

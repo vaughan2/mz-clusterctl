@@ -6,6 +6,20 @@ and idle shutdown.
 
 ## Quick Start
 
+### Setup
+
+Create a `.env` file in the project root with your database connection:
+
+```bash
+# For local Materialize instance
+DATABASE_URL=postgresql://materialize@localhost:6875/materialize
+
+# For Materialize Cloud instance
+DATABASE_URL=postgresql:<materialize connection string>
+```
+
+### Running
+
 ```bash
 # Install dependencies
 uv sync
@@ -18,6 +32,12 @@ uv run mz-clusterctl apply
 
 # Format and lint
 uv run ruff format && uv run ruff check
+```
+
+You might want to run `apply` in a loop, like this:
+
+```bash
+while true; sleep 1; uv run mz-clusterctl apply; end;
 ```
 
 ## Architecture

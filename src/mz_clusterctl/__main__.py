@@ -47,7 +47,9 @@ def main():
 
     # dry-run command
     _ = subparsers.add_parser(
-        "dry-run", parents=[common_parser], help="Read-only dry-run (prints SQL actions)"
+        "dry-run",
+        parents=[common_parser],
+        help="Read-only dry-run (prints SQL actions)",
     )
 
     # apply command

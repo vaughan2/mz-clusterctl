@@ -11,7 +11,7 @@ and idle shutdown.
 uv sync
 
 # Run dry-run to see planned actions
-uv run mz-clusterctl plan
+uv run mz-clusterctl dry-run
 
 # Execute the actions
 uv run mz-clusterctl apply
@@ -23,7 +23,7 @@ uv run ruff format && uv run ruff check
 ## Architecture
 
 Stateless CLI execution model with three main commands:
-- `plan` - read-only dry-run showing SQL actions
+- `dry-run` - read-only dry-run showing SQL actions
 - `apply` - executes actions and logs to audit trail
 - `wipe-state` - clears controller state
 

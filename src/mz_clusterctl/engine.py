@@ -24,7 +24,7 @@ class Engine:
     1. Bootstrap - load cluster and strategy configurations
     2. State hydration - restore previous state
     3. Run strategies - generate actions
-    4. Plan/Apply - execute or display actions
+    4. Dry-Run/Apply - execute or display actions
     5. Persist state - save updated state
     """
 
@@ -42,8 +42,9 @@ class Engine:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.db.__exit__(exc_type, exc_val, exc_tb)
 
-    def plan(self):
-        """Execute plan mode - dry run that shows what actions would be taken"""
+    def dry_run(self):
+        """Execute dry-run mode - dry run that shows what actions would be
+        taken"""
 
         with self.db:
             self.db.ensure_tables()

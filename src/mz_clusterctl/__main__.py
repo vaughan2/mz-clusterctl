@@ -45,9 +45,9 @@ def main():
         help="PostgreSQL connection URL (defaults to DATABASE_URL env var)",
     )
 
-    # plan command
+    # dry-run command
     _ = subparsers.add_parser(
-        "plan", parents=[common_parser], help="Read-only dry-run (prints SQL actions)"
+        "dry-run", parents=[common_parser], help="Read-only dry-run (prints SQL actions)"
     )
 
     # apply command
@@ -84,8 +84,8 @@ def main():
     engine = Engine(database_url=database_url, cluster_filter=args.cluster)
 
     try:
-        if args.command == "plan":
-            engine.plan()
+        if args.command == "dry-run":
+            engine.dry_run()
         elif args.command == "apply":
             engine.apply()
         elif args.command == "wipe-state":

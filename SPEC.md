@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS mz_cluster_strategy_actions (
 ## 3. CLI Surface
 
 ```
-mz‑clusterctl plan        # read-only dry‑run (prints SQL actions)
+mz‑clusterctl dry-run     # read-only dry‑run (prints SQL actions)
 mz‑clusterctl apply       # executes actions, writes audit log
 mz‑clusterctl wipe-state  # optional helper to clear mz_cluster_strategy_state
 Common flags:
@@ -73,7 +73,7 @@ mz_clusterctl/
  │    ├─ target_size.py  # aka. 0dt reconfiguration
  │    ├─ burst.py        # auto-scaling strategy with cooldown and idle shutdown
  │    └─ idle_suspend.py # idle cluster suspend/resume strategy
- ├─ engine.py            # orchestration: load config → run strategies → plan/apply → persist
+ ├─ engine.py            # orchestration: load config → run strategies → dry-run/apply → persist
  ├─ executor.py          # SQL execution engine with audit logging
  └─ log.py               # structured logging with structlog + verbosity levels
 ```
@@ -111,9 +111,9 @@ mz_clusterctl/
 
    * **StateDiffer** converts desired state to actions by comparing with current cluster state.
 
-4. **Plan vs. Apply**
+4. **Dry-Run vs. Apply**
 
-   * **plan**: pretty‑print ordered SQL with reasons.
+   * **dry-run**: pretty‑print ordered SQL with reasons.
    * **apply**: in sequence
 
      * `EXECUTE` each `action.sql` (autocommit).
@@ -206,5 +206,5 @@ INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES
 
 1. `uv sync` (installs dependencies and sets up development environment).
 2. `cp .env.example .env` ➜ adjust `DATABASE_URL`.
-3. `uv run mz-clusterctl plan --verbose`
+3. `uv run mz-clusterctl dry-run --verbose`
 4. Verify SQL, then `uv run mz-clusterctl apply`

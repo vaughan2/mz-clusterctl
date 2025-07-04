@@ -36,7 +36,7 @@ The project follows a stateless CLI execution model with the following key compo
 - **Database Integration**: Uses PostgreSQL connection to Materialize via `DATABASE_URL` environment variable
 - **Strategy System**: Pluggable strategy classes for different scaling behaviors (burst, idle_suspend, etc.)
 - **State Management**: Persistent state stored in Materialize tables (`mz_cluster_strategies`, `mz_cluster_strategy_state`, `mz_cluster_strategy_actions`)
-- **CLI Interface**: Three main commands - `plan` (dry-run), `apply` (execute), and `wipe-state`
+- **CLI Interface**: Three main commands - `dry-run`, `apply`, and `wipe-state`
 
 ### Core Architecture Components
 
@@ -61,7 +61,7 @@ Each invocation follows this pattern:
 1. **Bootstrap**: Load cluster strategies and metadata
 2. **State Hydration**: Restore previous state from database
 3. **Run Strategies**: Execute strategy logic to generate actions
-4. **Plan/Apply**: Either display actions (plan) or execute them (apply)
+4. **Dry-Run/Apply**: Either display actions (dry-run) or execute them (apply)
 5. **Persist State**: Save updated state back to database
 
 ## Configuration

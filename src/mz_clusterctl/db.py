@@ -365,41 +365,42 @@ class Database:
     def wipe_strategy_state(self, cluster_id: str | None = None):
         """Clear strategy state table"""
         logger.debug("Starting wipe_strategy_state", extra={"cluster_id": cluster_id})
-        with self.get_connection() as conn, conn.cursor() as cur:
-            if cluster_id:
-                sql = "DELETE FROM mz_cluster_strategy_state WHERE cluster_id = %s"
-                params = (cluster_id,)
-                logger.debug(
-                    "Executing SQL",
-                    extra={
-                        "sql": sql,
-                        "params": params,
-                    },
-                )
-                try:
-                    cur.execute(sql, params)
-                except Exception as e:
-                    logger.error(
-                        "Error executing SQL",
-                        extra={"sql": sql, "params": params, "error": str(e)},
-                        exc_info=True,
+        with self.get_connection() as conn:
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                if cluster_id:
+                    sql = "DELETE FROM mz_cluster_strategy_state WHERE cluster_id = %s"
+                    params = (cluster_id,)
+                    logger.debug(
+                        "Executing SQL",
+                        extra={
+                            "sql": sql,
+                            "params": params,
+                        },
                     )
-                    raise
-            else:
-                sql = "DELETE FROM mz_cluster_strategy_state"
-                logger.debug("Executing SQL", extra={"sql": sql, "params": None})
-                try:
-                    cur.execute(sql)
-                except Exception as e:
-                    logger.error(
-                        "Error executing SQL",
-                        extra={"sql": sql, "params": None, "error": str(e)},
-                        exc_info=True,
-                    )
-                    raise
+                    try:
+                        cur.execute(sql, params)
+                    except Exception as e:
+                        logger.error(
+                            "Error executing SQL",
+                            extra={"sql": sql, "params": params, "error": str(e)},
+                            exc_info=True,
+                        )
+                        raise
+                else:
+                    sql = "DELETE FROM mz_cluster_strategy_state"
+                    logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+                    try:
+                        cur.execute(sql)
+                    except Exception as e:
+                        logger.error(
+                            "Error executing SQL",
+                            extra={"sql": sql, "params": None, "error": str(e)},
+                            exc_info=True,
+                        )
+                        raise
 
-            conn.commit()
-            logger.info(f"Wiped strategy state for {cur.rowcount} clusters")
+                logger.info(f"Wiped strategy state for {cur.rowcount} clusters")
 
     def _matches_filter(self, name: str, pattern: str) -> bool:
         """Check if name matches filter pattern (simple regex)"""

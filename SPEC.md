@@ -54,7 +54,7 @@ mz‑clusterctl apply       # executes actions, writes audit log
 mz‑clusterctl wipe-state  # optional helper to clear mz_cluster_strategy_state
 Common flags:
   --cluster <name-regex>   # limit to subset of clusters
-  --verbose/-v             # debug logging (-v for debug, -vv for trace)
+  --verbose/-v             # debug logging (-v for info, -vv for debug)
   --postgres-url           # PostgreSQL connection URL (overrides DATABASE_URL env var)
 ```
 
@@ -145,7 +145,7 @@ State stored: `{"last_decision_ts": "...", "pending_target_replica": {"name": ".
 
 ## 7. Error Handling & Observability
 
-* **Logging**: Python `structlog` with configurable verbosity levels (INFO, DEBUG, TRACE).
+* **Logging**: Python `structlog` with configurable verbosity levels (INFO, DEBUG).
 * **Audit Table**: `mz_cluster_strategy_actions` provides complete audit trail.
 * **Error Handling**: Fail-fast approach with detailed error logging and rollback capability.
 * **State Versioning**: Handles schema evolution with version compatibility checks.

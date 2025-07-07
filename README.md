@@ -63,8 +63,8 @@ INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES
 When multiple strategies are configured for the same cluster, they execute in
 priority order:
 
-1. `shrink_to_fit` (priority 1)
-2. `target_size` (priority 1)
+1. `target_size` (priority 0) - lowest priority
+2. `shrink_to_fit` (priority 1)
 3. `burst` (priority 2)
 4. `idle_suspend` (priority 3)
 

@@ -197,7 +197,7 @@ INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES
 ### Behavior Example: Target Size + Burst
 
 1. **Target Size Strategy** (priority 0): Declares medium replica should exist
-2. **Burst Strategy** (priority 1): Receives desired state with medium replica
+2. **Burst Strategy** (priority 2): Receives desired state with medium replica
    - If medium replica is not hydrated → adds large burst replica
    - If medium replica is hydrated → removes burst replica
 3. **Result**: Maintains medium replica as baseline, adds burst when needed

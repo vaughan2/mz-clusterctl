@@ -317,5 +317,5 @@ class ShrinkToFitStrategy(Strategy):
 
     @classmethod
     def get_priority(cls) -> int:
-        """Shrink to fit strategy has medium-low priority (1.5)"""
+        """Shrink to fit strategy has second lowest priority (1)"""
         return 1

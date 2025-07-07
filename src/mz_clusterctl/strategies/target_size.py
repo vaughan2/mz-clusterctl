@@ -217,5 +217,5 @@ class TargetSizeStrategy(Strategy):
 
     @classmethod
     def get_priority(cls) -> int:
-        """Target size strategy has lowest priority (1)"""
-        return 1
+        """Target size strategy has lowest priority (0)"""
+        return 0

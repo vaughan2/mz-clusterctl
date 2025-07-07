@@ -5,6 +5,7 @@ Functions to query activity and hydration status from Materialize system tables.
 """
 
 from datetime import datetime
+from typing import Any
 
 import psycopg
 
@@ -35,6 +36,9 @@ def get_cluster_signals(
 
     # Get hydration status per replica
     signals.hydration_status = _get_hydration_status(conn, cluster_name)
+
+    # Get replica crash information
+    signals.replica_crash_info = _get_replica_crash_info(conn, cluster_name)
 
     return signals
 
@@ -153,6 +157,126 @@ def _get_hydration_status(
         )
 
         return hydration_status
+
+
+def _get_replica_crash_info(
+    conn: psycopg.Connection, cluster_name: str, lookback_hours: int = 1
+) -> dict[str, dict[str, Any]]:
+    """
+    Get crash information for replicas in a cluster using
+    mz_cluster_replica_status_history
+
+    Analyzes crash patterns over the specified lookback period to identify:
+    - OOM conditions (reason contains 'oom')
+    - Total crash count
+    - Recent crash patterns
+
+    Args:
+        conn: Database connection
+        cluster_name: Name of the cluster
+        lookback_hours: Hours to look back for crash history (default: 24)
+
+    Returns:
+        Dict mapping replica names to crash information
+    """
+    with conn.cursor() as cur:
+        sql = """
+            SELECT
+                cr.name as replica_name,
+                h.reason,
+                h.occurred_at,
+                h.status
+            FROM mz_cluster_replicas cr
+            JOIN mz_clusters c ON cr.cluster_id = c.id
+            JOIN mz_internal.mz_cluster_replica_status_history h ON h.replica_id = cr.id
+            WHERE c.name = %s
+            AND h.status = 'offline'
+            AND h.occurred_at >= NOW() - INTERVAL '%s hours'
+            AND h.reason IS NOT NULL
+            ORDER BY cr.name, h.occurred_at DESC
+        """
+        params = (cluster_name, lookback_hours)
+        logger.debug(
+            "Executing SQL",
+            extra={
+                "sql": sql,
+                "params": params,
+                "param_types": [type(p).__name__ for p in params],
+            },
+        )
+
+        try:
+            cur.execute(sql, params)
+        except Exception as e:
+            logger.error(
+                "Error executing SQL",
+                extra={"sql": sql, "params": params, "error": str(e)},
+                exc_info=True,
+            )
+            raise
+
+        results = cur.fetchall()
+        crash_info = {}
+
+        for result in results:
+            replica_name = result["replica_name"]
+            reason = result["reason"]
+            occurred_at = result["occurred_at"]
+
+            if replica_name not in crash_info:
+                crash_info[replica_name] = {
+                    "total_crashes": 0,
+                    "oom_count": 0,
+                    "recent_crashes": [],
+                    "latest_crash_time": None,
+                    "crash_reasons": {},
+                }
+
+            info = crash_info[replica_name]
+            info["total_crashes"] += 1
+
+            # Track OOM-specific crashes
+            if reason and "oom" in reason.lower():
+                info["oom_count"] += 1
+
+            # Track crash reasons
+            if reason:
+                if reason not in info["crash_reasons"]:
+                    info["crash_reasons"][reason] = 0
+                info["crash_reasons"][reason] += 1
+
+            # Track recent crashes (last 10)
+            if len(info["recent_crashes"]) < 10:
+                info["recent_crashes"].append(
+                    {
+                        "reason": reason,
+                        "occurred_at": occurred_at,
+                    }
+                )
+
+            # Update latest crash time
+            if (
+                info["latest_crash_time"] is None
+                or occurred_at > info["latest_crash_time"]
+            ):
+                info["latest_crash_time"] = occurred_at
+
+        logger.info(
+            "Replica crash information collected",
+            extra={
+                "cluster_name": cluster_name,
+                "replicas_with_crashes": len(crash_info),
+                "crash_summary": {
+                    name: {
+                        "total_crashes": info["total_crashes"],
+                        "oom_count": info["oom_count"],
+                    }
+                    for name, info in crash_info.items()
+                },
+            },
+        )
+
+        return crash_info
 
 
 def get_cluster_metrics(conn: psycopg.Connection, cluster_name: str) -> dict:

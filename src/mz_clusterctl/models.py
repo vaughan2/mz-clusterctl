@@ -173,6 +173,7 @@ class Signals:
     cluster_id: str
     last_activity_ts: datetime | None = None
     hydration_status: dict[str, bool] = field(default_factory=dict)
+    replica_crash_info: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def seconds_since_activity(self) -> float | None:
@@ -189,3 +190,21 @@ class Signals:
     def is_replica_hydrated(self, replica_name: str) -> bool:
         """Whether a specific replica is hydrated"""
         return self.hydration_status.get(replica_name, False)
+
+    def is_replica_oom_looping(self, replica_name: str, min_oom_count: int = 3) -> bool:
+        """Whether a replica is experiencing OOM loops"""
+        crash_info = self.replica_crash_info.get(replica_name, {})
+        oom_count = crash_info.get("oom_count", 0)
+        return oom_count >= min_oom_count
+
+    def is_replica_crash_looping(
+        self, replica_name: str, min_crash_count: int = 5
+    ) -> bool:
+        """Whether a replica is experiencing crash loops"""
+        crash_info = self.replica_crash_info.get(replica_name, {})
+        total_crashes = crash_info.get("total_crashes", 0)
+        return total_crashes >= min_crash_count
+
+    def get_replica_crash_summary(self, replica_name: str) -> dict[str, Any]:
+        """Get crash summary for a specific replica"""
+        return self.replica_crash_info.get(replica_name, {})

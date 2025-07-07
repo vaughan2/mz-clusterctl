@@ -1,0 +1,33 @@
+name: Periodic mz-clusterctl
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  clusterctl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run mz-clusterctl (apply)
+        env:
+          DATABASE_URL: ${{ secrets.MATERIALIZE_DATABASE_URL }}
+        run: |
+          uv run mz-clusterctl apply

@@ -47,6 +47,12 @@ class ShrinkToFitStrategy(Strategy):
         if "cooldown_s" in config and config["cooldown_s"] < 0:
             raise ValueError("cooldown_s must be >= 0")
 
+        # Optional crash detection thresholds
+        if "min_oom_count" in config and config["min_oom_count"] < 1:
+            raise ValueError("min_oom_count must be >= 1")
+        if "min_crash_count" in config and config["min_crash_count"] < 1:
+            raise ValueError("min_crash_count must be >= 1")
+
     def _get_sizes_up_to_max(self, max_size: str) -> list[str]:
         """Get all replica sizes up to and including max_size"""
         try:
@@ -125,6 +131,10 @@ class ShrinkToFitStrategy(Strategy):
                 desired_replicas_by_size[replica_spec.size] = []
             desired_replicas_by_size[replica_spec.size].append(replica_spec)
 
+        # Get crash detection thresholds
+        min_oom_count = config.get("min_oom_count", 1)
+        min_crash_count = config.get("min_crash_count", 1)
+
         logger.debug(
             "Evaluating shrink to fit requirements",
             extra={
@@ -138,6 +148,11 @@ class ShrinkToFitStrategy(Strategy):
                     k: len(v) for k, v in desired_replicas_by_size.items()
                 },
                 "hydration_status": signals.hydration_status,
+                "crash_detection": {
+                    "min_oom_count": min_oom_count,
+                    "min_crash_count": min_crash_count,
+                    "replicas_with_crashes": len(signals.replica_crash_info),
+                },
             },
         )
 
@@ -160,41 +175,95 @@ class ShrinkToFitStrategy(Strategy):
                 },
             )
 
-        # Phase 2: Drop larger replicas when smaller ones are hydrated
-        else:
-            # Find the smallest hydrated replica size
-            smallest_hydrated_size = None
-            smallest_hydrated_index = float("inf")
+        # Phase 2: Remove crash-looping replicas (they're definitively too small)
+        if desired.target_replicas:
+            crash_looping_replicas = []
+            for replica_name, replica_spec in desired.target_replicas.items():
+                if signals.is_replica_oom_looping(replica_name, min_oom_count):
+                    crash_summary = signals.get_replica_crash_summary(replica_name)
+                    crash_looping_replicas.append(
+                        (
+                            replica_name,
+                            replica_spec.size,
+                            f"OOM loops ({crash_summary.get('oom_count', 0)} OOMs)",
+                        )
+                    )
+                elif signals.is_replica_crash_looping(replica_name, min_crash_count):
+                    crash_summary = signals.get_replica_crash_summary(replica_name)
+                    total_crashes = crash_summary.get("total_crashes", 0)
+                    crash_looping_replicas.append(
+                        (
+                            replica_name,
+                            replica_spec.size,
+                            f"crash loops ({total_crashes} crashes)",
+                        )
+                    )
+
+            for replica_name, replica_size, reason in crash_looping_replicas:
+                desired.remove_replica(
+                    replica_name,
+                    f"Removing replica ({replica_size}) - {reason}",
+                )
+
+            if crash_looping_replicas:
+                logger.info(
+                    "Removed crash-looping replicas",
+                    extra={
+                        "cluster_id": signals.cluster_id,
+                        "replicas_removed": len(crash_looping_replicas),
+                        "removed_details": [
+                            {"name": name, "size": size, "reason": reason}
+                            for name, size, reason in crash_looping_replicas
+                        ],
+                    },
+                )
+
+        # Phase 3: Drop larger replicas when smaller ones are healthy
+        if desired.target_replicas:
+            # Find the smallest healthy replica size (hydrated AND not crash-looping)
+            smallest_healthy_size = None
+            smallest_healthy_index = float("inf")
 
             for replica_name, is_hydrated in signals.hydration_status.items():
-                if is_hydrated and replica_name in desired.target_replicas:
+                is_oom_looping = signals.is_replica_oom_looping(
+                    replica_name, min_oom_count
+                )
+                is_crash_looping = signals.is_replica_crash_looping(
+                    replica_name, min_crash_count
+                )
+                if (
+                    is_hydrated
+                    and replica_name in desired.target_replicas
+                    and not is_oom_looping
+                    and not is_crash_looping
+                ):
                     replica_spec = desired.target_replicas[replica_name]
                     size_index = self._get_replica_size_index(replica_spec.size)
-                    if size_index < smallest_hydrated_index:
-                        smallest_hydrated_index = size_index
-                        smallest_hydrated_size = replica_spec.size
+                    if size_index < smallest_healthy_index:
+                        smallest_healthy_index = size_index
+                        smallest_healthy_size = replica_spec.size
 
-            if smallest_hydrated_size:
-                # Drop all replicas larger than the smallest hydrated one
+            if smallest_healthy_size:
+                # Drop all replicas larger than the smallest healthy one
                 replicas_to_drop = []
                 for replica_name, replica_spec in desired.target_replicas.items():
                     replica_size_index = self._get_replica_size_index(replica_spec.size)
-                    if replica_size_index > smallest_hydrated_index:
+                    if replica_size_index > smallest_healthy_index:
                         replicas_to_drop.append((replica_name, replica_spec.size))
 
                 for replica_name, replica_size in replicas_to_drop:
                     desired.remove_replica(
                         replica_name,
                         f"Dropping larger replica ({replica_size}) - "
-                        f"smaller replica ({smallest_hydrated_size}) is hydrated",
+                        f"smaller replica ({smallest_healthy_size}) is healthy",
                     )
 
                 if replicas_to_drop:
                     logger.info(
-                        "Dropping larger replicas - smaller replica is hydrated",
+                        "Dropping larger replicas - smaller replica is healthy",
                         extra={
                             "cluster_id": signals.cluster_id,
-                            "smallest_hydrated_size": smallest_hydrated_size,
+                            "smallest_healthy_size": smallest_healthy_size,
                             "replicas_dropped": len(replicas_to_drop),
                             "dropped_sizes": [size for _, size in replicas_to_drop],
                         },

@@ -183,6 +183,38 @@ export DATABASE_URL=postgresql://materialize@localhost:6875/materialize
 echo "DATABASE_URL=postgresql://materialize@localhost:6875/materialize" > .env
 ```
 
+**Important:** The database user/connection string must have access to the
+following builtin collections and permissions:
+
+**System catalog tables (read access required):**
+- `mz_catalog.mz_clusters` - to enumerate clusters and their metadata
+- `mz_catalog.mz_cluster_replicas` - to get replica information (name, size,
+  etc.)
+- `mz_catalog.mz_indexes` - to determine which objects need to be hydrated
+
+**System internal tables (read access required):**
+- `mz_internal.mz_statement_execution_history_redacted` - to track cluster
+  activity for idle detection
+- `mz_internal.mz_hydration_statuses` - to monitor replica hydration status for
+  scaling decisions
+- `mz_internal.mz_cluster_replica_status_history` - to track replica crashes
+  and status changes
+- `mz_internal.mz_active_peeks` - to get active query count for workload
+  assessment
+
+**DDL permissions required:**
+- `CREATE CLUSTER REPLICA` - to create new replicas based on scaling strategies
+- `DROP CLUSTER REPLICA` - to remove replicas when scaling down or suspending
+- `CREATE TABLE` - to create management tables (`mz_cluster_strategies`,
+  `mz_cluster_strategy_state`, `mz_cluster_strategy_actions`)
+- `INSERT`, `SELECT`, `DELETE` - on the management tables for configuration and
+  state persistence
+
+**RBAC Setup:** If using Materialize Cloud or a system with RBAC enabled,
+ensure the user specified in your connection string has the appropriate
+permissions. The default `materialize` user typically has these permissions,
+but custom users may need explicit grants.
+
 ### Running the Controller
 
 **Dry-run mode** (view planned actions without executing):

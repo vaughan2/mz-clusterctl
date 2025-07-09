@@ -193,38 +193,3 @@ class Executor:
             print(f"All {summary['executed']} actions executed successfully")
 
         return summary
-
-    def validate_action(self, action: Action) -> bool:
-        """
-        Validate an action before execution
-
-        Args:
-            action: Action to validate
-
-        Returns:
-            True if action is valid, False otherwise
-        """
-        # Basic validation
-        if not action.sql or not action.sql.strip():
-            logger.error("Action has empty SQL", extra={"action": action})
-            return False
-
-        # Check for potentially dangerous operations
-        sql_upper = action.sql.upper().strip()
-
-        # Allow specific DDL operations
-        allowed_operations = [
-            "CREATE CLUSTER REPLICA",
-            "DROP CLUSTER REPLICA",
-            "ALTER CLUSTER",
-        ]
-
-        if not any(sql_upper.startswith(op) for op in allowed_operations):
-            logger.warning(
-                "Action contains potentially unsafe SQL",
-                extra={"action_sql": action.sql},
-            )
-            # For now, we'll allow it but log a warning
-            # In production, you might want to be more restrictive
-
-        return True

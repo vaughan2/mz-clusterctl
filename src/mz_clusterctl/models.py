@@ -88,32 +88,6 @@ class StrategyState:
     payload: dict[str, Any] = field(default_factory=dict)
     updated_at: datetime | None = None
 
-    def to_json(self) -> str:
-        """Serialize state to JSON for database storage"""
-        data = {
-            "cluster_id": self.cluster_id,
-            "strategy_type": self.strategy_type,
-            "state_version": self.state_version,
-            "payload": self.payload,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
-        return json.dumps(data)
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "StrategyState":
-        """Deserialize state from JSON"""
-        data = json.loads(json_str)
-        return cls(
-            cluster_id=data["cluster_id"],
-            strategy_type=data["strategy_type"],
-            state_version=data["state_version"],
-            payload=data["payload"],
-            updated_at=datetime.fromisoformat(data["updated_at"])
-            if data["updated_at"]
-            else None,
-        )
-
-
 @dataclass
 class StrategyConfig:
     """Configuration for a strategy from mz_cluster_strategies table"""
@@ -156,10 +130,6 @@ class DesiredState:
         self.target_replicas.pop(replica_name, None)
         if reason:
             self.reasons.append(f"Removing replica {replica_name}: {reason}")
-
-    def has_replica(self, replica_name: str) -> bool:
-        """Check if a replica is in the desired state"""
-        return replica_name in self.target_replicas
 
     def get_replica_names(self) -> set[str]:
         """Get all replica names in the desired state"""

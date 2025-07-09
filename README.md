@@ -215,6 +215,45 @@ ensure the user specified in your connection string has the appropriate
 permissions. The default `materialize` user typically has these permissions,
 but custom users may need explicit grants.
 
+### Manual Table Creation
+
+If you prefer not to grant `CREATE TABLE` privileges to the user, you can
+manually create the required tables using the following SQL statements:
+
+```sql
+CREATE TABLE IF NOT EXISTS mz_cluster_strategies (
+    cluster_id    TEXT            NOT NULL,
+    strategy_type TEXT            NOT NULL,
+    config        JSONB           NOT NULL,
+    updated_at    TIMESTAMPTZ     DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS mz_cluster_strategy_state (
+    cluster_id    TEXT            NOT NULL,
+    state_version INT             NOT NULL,
+    payload       JSONB           NOT NULL,
+    updated_at    TIMESTAMPTZ     DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS mz_cluster_strategy_actions (
+    action_id     TEXT            NOT NULL,
+    cluster_id    TEXT,
+    action_sql    TEXT,
+    decision_ctx  JSONB,
+    executed      BOOL,
+    error_message TEXT,
+    created_at    TIMESTAMPTZ     DEFAULT now()
+);
+```
+
+After creating these tables, you'll also need to grant the necessary permissions:
+
+```sql
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_state TO materialize;
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_actions TO materialize;
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategies TO materialize;
+```
+
 ### Running the Controller
 
 **Dry-run mode** (view planned actions without executing):

@@ -30,5 +30,4 @@ You can modify the workflow to:
 ### Security Considerations
 
 - Database credentials are stored as GitHub secrets
-- The workflow runs in a clean Ubuntu environment
 - No persistent state is maintained between runs

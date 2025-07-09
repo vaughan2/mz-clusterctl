@@ -5,6 +5,7 @@ Provides PostgreSQL connection pool and database schema management.
 """
 
 import json
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -20,12 +21,36 @@ from .models import ClusterInfo, ReplicaInfo, StrategyConfig, StrategyState
 logger = get_logger(__name__)
 
 
+def _sanitize_database_url(url: str) -> str:
+    """Sanitize database URL to hide credentials"""
+    # Pattern to match database URLs and hide credentials
+    # postgres://user:password@host:port/db -> postgres://***:***@host:port/db
+    pattern = r"(postgres(?:ql)?://)[^:@]+:[^@]+(@[^/]+/?.*)$"
+    return re.sub(pattern, r"\1***:***\2", url)
+
+
+def _sanitize_error_message(message: str, database_url: str) -> str:
+    """Remove database URL from error message"""
+    if database_url in message:
+        sanitized_url = _sanitize_database_url(database_url)
+        return message.replace(database_url, sanitized_url)
+    return message
+
+
 class Database:
     """Database connection manager and helper methods"""
 
     def __init__(self, database_url: str):
-        self.database_url = database_url
-        self.pool = ConnectionPool(conninfo=database_url, min_size=1, max_size=10)
+        self._database_url = database_url
+        try:
+            self.pool = ConnectionPool(conninfo=database_url, min_size=1, max_size=10)
+        except Exception as e:
+            sanitized_error = _sanitize_error_message(str(e), database_url)
+            logger.error(
+                "Failed to create database connection pool",
+                extra={"error": sanitized_error},
+            )
+            raise RuntimeError(f"Database connection failed: {sanitized_error}") from e
 
     def __enter__(self):
         return self
@@ -35,7 +60,15 @@ class Database:
 
     def close(self):
         """Close the connection pool"""
-        self.pool.close()
+        try:
+            self.pool.close()
+        except Exception as e:
+            sanitized_error = _sanitize_error_message(str(e), self._database_url)
+            logger.error(
+                "Error closing database connection pool",
+                extra={"error": sanitized_error},
+            )
+            # Don't re-raise as we're likely in cleanup
 
     @contextmanager
     def get_connection(self) -> Iterator[psycopg.Connection]:
@@ -101,9 +134,10 @@ class Database:
             try:
                 cur.execute(sql)
             except Exception as e:
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
-                    extra={"sql": sql, "params": None, "error": str(e)},
+                    extra={"sql": sql, "params": None, "error": sanitized_error},
                     exc_info=True,
                 )
                 raise
@@ -151,9 +185,12 @@ class Database:
                         managed=cluster.managed,
                     )
                 except Exception as e:
+                    sanitized_error = _sanitize_error_message(
+                        str(e), self._database_url
+                    )
                     logger.error(
                         "Error executing SQL",
-                        extra={"sql": sql, "params": params, "error": str(e)},
+                        extra={"sql": sql, "params": params, "error": sanitized_error},
                         exc_info=True,
                     )
                     raise
@@ -180,9 +217,12 @@ class Database:
                 try:
                     cur.execute(sql, params)
                 except Exception as e:
+                    sanitized_error = _sanitize_error_message(
+                        str(e), self._database_url
+                    )
                     logger.error(
                         "Error executing SQL",
-                        extra={"sql": sql, "params": params, "error": str(e)},
+                        extra={"sql": sql, "params": params, "error": sanitized_error},
                         exc_info=True,
                     )
                     raise
@@ -192,9 +232,12 @@ class Database:
                 try:
                     cur.execute(sql)
                 except Exception as e:
+                    sanitized_error = _sanitize_error_message(
+                        str(e), self._database_url
+                    )
                     logger.error(
                         "Error executing SQL",
-                        extra={"sql": sql, "params": None, "error": str(e)},
+                        extra={"sql": sql, "params": None, "error": sanitized_error},
                         exc_info=True,
                     )
                     raise
@@ -220,9 +263,10 @@ class Database:
                 cur.execute(sql, params)
                 row = cur.fetchone()
             except Exception as e:
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
-                    extra={"sql": sql, "params": params, "error": str(e)},
+                    extra={"sql": sql, "params": params, "error": sanitized_error},
                     exc_info=True,
                 )
                 raise
@@ -255,11 +299,20 @@ class Database:
                     (cluster_id, state_version, payload, updated_at)
                     VALUES (%s, %s, %s, now())
                 """
-            params = (
-                state.cluster_id,
-                state.state_version,
-                json.dumps(state.payload),
-            )
+            try:
+                params = (
+                    state.cluster_id,
+                    state.state_version,
+                    json.dumps(state.payload),
+                )
+            except (TypeError, ValueError) as e:
+                logger.error(
+                    "Error serializing strategy state payload",
+                    extra={"cluster_id": state.cluster_id, "error": str(e)},
+                    exc_info=True,
+                )
+                raise ValueError(f"Invalid strategy state payload: {e}") from e
+
             logger.debug(
                 "Executing SQL",
                 extra={
@@ -271,9 +324,10 @@ class Database:
                 cur.execute(sql, params)
                 conn.commit()
             except Exception as e:
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
-                    extra={"sql": sql, "params": params, "error": str(e)},
+                    extra={"sql": sql, "params": params, "error": sanitized_error},
                     exc_info=True,
                 )
                 raise
@@ -303,14 +357,23 @@ class Database:
                      error_message)
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """
-            params = (
-                action_id,
-                cluster_id,
-                action_sql,
-                json.dumps(decision_ctx),
-                executed,
-                error_message,
-            )
+            try:
+                params = (
+                    action_id,
+                    cluster_id,
+                    action_sql,
+                    json.dumps(decision_ctx),
+                    executed,
+                    error_message,
+                )
+            except (TypeError, ValueError) as e:
+                logger.error(
+                    "Error serializing decision context",
+                    extra={"cluster_id": cluster_id, "error": str(e)},
+                    exc_info=True,
+                )
+                raise ValueError(f"Invalid decision context: {e}") from e
+
             logger.debug(
                 "Executing SQL",
                 extra={
@@ -323,9 +386,10 @@ class Database:
                 conn.commit()
                 return action_id
             except Exception as e:
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
-                    extra={"sql": sql, "params": params, "error": str(e)},
+                    extra={"sql": sql, "params": params, "error": sanitized_error},
                     exc_info=True,
                 )
                 raise
@@ -343,9 +407,10 @@ class Database:
                     "statusmessage": cur.statusmessage,
                 }
             except Exception as e:
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
-                    extra={"sql": sql, "params": None, "error": str(e)},
+                    extra={"sql": sql, "params": None, "error": sanitized_error},
                     exc_info=True,
                 )
                 raise
@@ -369,9 +434,16 @@ class Database:
                     try:
                         cur.execute(sql, params)
                     except Exception as e:
+                        sanitized_error = _sanitize_error_message(
+                            str(e), self._database_url
+                        )
                         logger.error(
                             "Error executing SQL",
-                            extra={"sql": sql, "params": params, "error": str(e)},
+                            extra={
+                                "sql": sql,
+                                "params": params,
+                                "error": sanitized_error,
+                            },
                             exc_info=True,
                         )
                         raise
@@ -381,9 +453,16 @@ class Database:
                     try:
                         cur.execute(sql)
                     except Exception as e:
+                        sanitized_error = _sanitize_error_message(
+                            str(e), self._database_url
+                        )
                         logger.error(
                             "Error executing SQL",
-                            extra={"sql": sql, "params": None, "error": str(e)},
+                            extra={
+                                "sql": sql,
+                                "params": None,
+                                "error": sanitized_error,
+                            },
                             exc_info=True,
                         )
                         raise
@@ -392,10 +471,12 @@ class Database:
 
     def _matches_filter(self, name: str, pattern: str) -> bool:
         """Check if name matches filter pattern (simple regex)"""
-        import re
-
         try:
             return bool(re.search(pattern, name))
         except re.error:
             # If regex is invalid, fall back to substring match
+            logger.warning(
+                "Invalid regex pattern, falling back to substring match",
+                extra={"pattern": pattern},
+            )
             return pattern.lower() in name.lower()

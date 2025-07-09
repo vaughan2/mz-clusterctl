@@ -189,7 +189,12 @@ class StrategyCoordinator:
                 )
                 continue
 
+        # If no strategies succeeded, return empty actions
         if current_desired_state is None:
+            logger.warning(
+                "No strategies produced desired state",
+                extra={"cluster_id": cluster_info.id},
+            )
             return [], new_states
 
         # Generate actions from final desired state

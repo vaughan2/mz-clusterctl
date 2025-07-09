@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from ..log import get_logger
-from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+from ..models import ClusterInfo, DesiredState, Signals, StrategyState
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -52,37 +52,11 @@ class IdleSuspendStrategy(Strategy):
         """Make idle suspend decisions"""
         self.validate_config(config)
 
-        now = datetime.utcnow()
-
-        # Start with previous desired state if available, otherwise current replicas
-        if current_desired_state:
-            desired = current_desired_state
-        else:
-            desired = DesiredState(
-                cluster_id=cluster_info.id,
-                strategy_type=current_state.strategy_type,
-                priority=self.get_priority(),
-            )
-            # Start with current replicas
-            for replica in cluster_info.replicas:
-                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
-
-        # Check cooldown period (optional)
-        cooldown_s = config.get("cooldown_s", 0)
-        if cooldown_s > 0:
-            last_decision_ts = current_state.payload.get("last_decision_ts")
-            if last_decision_ts:
-                last_decision = datetime.fromisoformat(last_decision_ts)
-                if (now - last_decision).total_seconds() < cooldown_s:
-                    logger.debug(
-                        "Skipping decision due to cooldown",
-                        extra={
-                            "cluster_id": signals.cluster_id,
-                            "cooldown_remaining": cooldown_s
-                            - (now - last_decision).total_seconds(),
-                        },
-                    )
-                    return desired, current_state
+        desired = self._initialize_desired_state(
+            current_state, cluster_info, current_desired_state
+        )
+        if self._check_cooldown(current_state, config, signals):
+            return desired, current_state
 
         idle_after_s = config["idle_after_s"]
         current_replicas = len(desired.target_replicas)

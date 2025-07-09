@@ -4,7 +4,6 @@ Data models for mz-clusterctl
 Contains dataclasses for strategy state, replica specifications, and actions.
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -87,6 +86,7 @@ class StrategyState:
     state_version: int
     payload: dict[str, Any] = field(default_factory=dict)
     updated_at: datetime | None = None
+
 
 @dataclass
 class StrategyConfig:

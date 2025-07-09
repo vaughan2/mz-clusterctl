@@ -5,9 +5,13 @@ Defines the Strategy abstract base class that all scaling strategies must implem
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any
 
-from ..models import ClusterInfo, DesiredState, Signals, StrategyState
+from ..log import get_logger
+from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+
+logger = get_logger(__name__)
 
 
 class Strategy(ABC):
@@ -103,3 +107,88 @@ class Strategy(ABC):
             Priority value for this strategy
         """
         return 0
+
+    def _initialize_desired_state(
+        self,
+        current_state: StrategyState,
+        cluster_info: ClusterInfo,
+        current_desired_state: DesiredState | None = None,
+    ) -> DesiredState:
+        """
+        Initialize desired state from previous state or current replicas
+
+        Args:
+            current_state: Current strategy state
+            cluster_info: Information about the cluster
+            current_desired_state: Previous desired state from other strategies
+
+        Returns:
+            Initialized DesiredState
+        """
+        if current_desired_state:
+            return current_desired_state
+        else:
+            desired = DesiredState(
+                cluster_id=cluster_info.id,
+                strategy_type=current_state.strategy_type,
+                priority=self.get_priority(),
+            )
+            # Start with current replicas
+            for replica in cluster_info.replicas:
+                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
+            return desired
+
+    def _check_cooldown(
+        self,
+        current_state: StrategyState,
+        config: dict[str, Any],
+        signals: Signals,
+    ) -> bool:
+        """
+        Check if strategy is in cooldown period
+
+        Args:
+            current_state: Current strategy state
+            config: Strategy configuration
+            signals: Activity and hydration signals
+
+        Returns:
+            True if in cooldown (should skip decision), False otherwise
+        """
+        cooldown_s = config.get("cooldown_s", 0)
+        if cooldown_s <= 0:
+            return False
+
+        last_decision_ts = current_state.payload.get("last_decision_ts")
+        if not last_decision_ts:
+            return False
+
+        try:
+            last_decision = datetime.fromisoformat(last_decision_ts)
+            now = datetime.utcnow()
+            time_since_last = (now - last_decision).total_seconds()
+
+            if time_since_last < cooldown_s:
+                logger.debug(
+                    "Skipping decision due to cooldown",
+                    extra={
+                        "cluster_id": signals.cluster_id,
+                        "strategy_type": current_state.strategy_type,
+                        "cooldown_remaining": cooldown_s - time_since_last,
+                    },
+                )
+                return True
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Invalid timestamp in strategy state, ignoring cooldown",
+                extra={
+                    "cluster_id": signals.cluster_id,
+                    "strategy_type": current_state.strategy_type,
+                    "timestamp": last_decision_ts,
+                    "error": str(e),
+                },
+            )
+            # Reset the invalid timestamp
+            current_state.payload["last_decision_ts"] = None
+
+        return False

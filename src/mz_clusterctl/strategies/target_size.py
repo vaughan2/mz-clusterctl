@@ -54,22 +54,14 @@ class TargetSizeStrategy(Strategy):
         """Make target size decisions"""
         self.validate_config(config)
 
-        now = datetime.utcnow()
+        desired = self._initialize_desired_state(
+            current_state, cluster_info, current_desired_state
+        )
+        if self._check_cooldown(current_state, config, signals):
+            return desired, current_state
+
         target_size = config["target_size"]
         replica_name = config.get("replica_name", f"r_{target_size}")
-
-        # Start with previous desired state if available, otherwise current replicas
-        if current_desired_state:
-            desired = current_desired_state
-        else:
-            desired = DesiredState(
-                cluster_id=cluster_info.id,
-                strategy_type=current_state.strategy_type,
-                priority=self.get_priority(),
-            )
-            # Start with current replicas
-            for replica in cluster_info.replicas:
-                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
 
         # Find current replicas by size
         current_replicas = list(cluster_info.replicas)
@@ -179,6 +171,8 @@ class TargetSizeStrategy(Strategy):
 
         # Update state based on changes
         if changes_made:
+            now = datetime.utcnow()
+
             new_payload["last_decision_ts"] = now.isoformat()
 
             # Track replica changes

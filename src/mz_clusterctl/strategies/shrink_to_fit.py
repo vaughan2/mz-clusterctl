@@ -80,38 +80,13 @@ class ShrinkToFitStrategy(Strategy):
         """Make shrink to fit scaling decisions"""
         self.validate_config(config)
 
-        now = datetime.utcnow()
+        desired = self._initialize_desired_state(
+            current_state, cluster_info, current_desired_state
+        )
+        if self._check_cooldown(current_state, config, signals):
+            return desired, current_state
+
         max_replica_size = config["max_replica_size"]
-
-        # Start with previous desired state if available, otherwise current replicas
-        if current_desired_state:
-            desired = current_desired_state
-        else:
-            desired = DesiredState(
-                cluster_id=cluster_info.id,
-                strategy_type=current_state.strategy_type,
-                priority=self.get_priority(),
-            )
-            # Start with current replicas
-            for replica in cluster_info.replicas:
-                desired.add_replica(ReplicaSpec(name=replica.name, size=replica.size))
-
-        # Check cooldown period
-        cooldown_s = config.get("cooldown_s", 0)
-        if cooldown_s > 0:
-            last_decision_ts = current_state.payload.get("last_decision_ts")
-            if last_decision_ts:
-                last_decision = datetime.fromisoformat(last_decision_ts)
-                if (now - last_decision).total_seconds() < cooldown_s:
-                    logger.debug(
-                        "Skipping decision due to cooldown",
-                        extra={
-                            "cluster_id": signals.cluster_id,
-                            "cooldown_remaining": cooldown_s
-                            - (now - last_decision).total_seconds(),
-                        },
-                    )
-                    return desired, current_state
 
         # Get all valid sizes up to max
         valid_sizes = self._get_sizes_up_to_max(max_replica_size)
@@ -280,6 +255,8 @@ class ShrinkToFitStrategy(Strategy):
         )
         desired_replica_names = desired.get_replica_names()
         changes_made = initial_replica_names != desired_replica_names
+
+        now = datetime.utcnow()
 
         # Update last decision timestamp if any changes were made
         if changes_made:

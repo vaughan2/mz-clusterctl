@@ -183,6 +183,11 @@ export DATABASE_URL=postgresql://materialize@localhost:6875/materialize
 echo "DATABASE_URL=postgresql://materialize@localhost:6875/materialize" > .env
 ```
 
+Here and below, `materialize` is a placeholder for both a database and a
+username which you want to use for running the tool. They should both be
+included in the connection string.
+
+
 **Important:** The database user/connection string must have access to the
 following builtin collections and permissions:
 

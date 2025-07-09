@@ -285,6 +285,10 @@ uv run mz-clusterctl apply --cluster "production-.*"
 
 The tool is designed to run periodically. A typical setup might run it every 1-5 minutes:
 
+**Using GitHub Actions:**
+For cloud-based periodic execution, see
+[README-github-actions.md](README-github-actions.md) for setup instructions.
+
 **Using cron:**
 ```bash
 # Run every 2 minutes
@@ -292,6 +296,8 @@ The tool is designed to run periodically. A typical setup might run it every 1-5
 ```
 
 **Using a simple loop:**
+This can be useful for iterating on a local testing setup.
+
 ```bash
 while true; do
     uv run mz-clusterctl apply

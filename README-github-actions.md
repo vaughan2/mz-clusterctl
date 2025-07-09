@@ -5,6 +5,17 @@
 The `periodic-clusterctl.yml` workflow runs mz-clusterctl against your
 Materialize Cloud environment on a schedule.
 
+### Setup
+
+To set up the GitHub Actions workflow place the `periodic-clusterctl.yml` file
+in the `.github/workflows/` directory of your GitHub repository.
+
+For example:
+```bash
+mkdir -p .github/workflows
+cp periodic-clusterctl.yml .github/workflows/
+```
+
 ### Required Secrets
 
 Set these secrets in your GitHub repository settings:

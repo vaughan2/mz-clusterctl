@@ -30,4 +30,4 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.MATERIALIZE_DATABASE_URL }}
         run: |
-          uv run mz-clusterctl apply
+          uv run mz-clusterctl apply -vv

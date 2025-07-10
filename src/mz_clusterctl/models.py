@@ -136,6 +136,16 @@ class DesiredState:
         return set(self.target_replicas.keys())
 
 
+@dataclass(frozen=True)
+class ReplicaSizeInfo:
+    """Information about a replica size from mz_cluster_replica_sizes"""
+
+    size: str
+    processes: int
+    workers: int
+    credits_per_hour: float
+
+
 @dataclass
 class Signals:
     """Signals/metrics used by strategies to make decisions"""

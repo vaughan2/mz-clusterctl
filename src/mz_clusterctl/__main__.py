@@ -44,6 +44,13 @@ def main():
         type=str,
         help="PostgreSQL connection URL (defaults to DATABASE_URL env var)",
     )
+    common_parser.add_argument(
+        "--replica-sizes",
+        type=str,
+        help="Comma-separated list of replica sizes to use for local testing "
+        "(e.g., '1,2,4,8'). Normally replica sizes are retrieved from Materialize "
+        "itself.",
+    )
 
     # dry-run command
     _ = subparsers.add_parser(
@@ -82,8 +89,22 @@ def main():
         )
         sys.exit(1)
 
+    # Parse replica sizes override if provided
+    replica_sizes_override = None
+    if args.replica_sizes:
+        replica_sizes_override = [
+            size.strip() for size in args.replica_sizes.split(",")
+        ]
+        if not replica_sizes_override:
+            print("Error: --replica-sizes cannot be empty", file=sys.stderr)
+            sys.exit(1)
+
     # Initialize engine
-    engine = Engine(database_url=database_url, cluster_filter=args.cluster)
+    engine = Engine(
+        database_url=database_url,
+        cluster_filter=args.cluster,
+        replica_sizes_override=replica_sizes_override,
+    )
 
     try:
         if args.command == "dry-run":

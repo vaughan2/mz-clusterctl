@@ -9,8 +9,15 @@ smallest replica size needed.
 from datetime import datetime
 from typing import Any
 
+from ..environment import Environment
 from ..log import get_logger
-from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+from ..models import (
+    ClusterInfo,
+    DesiredState,
+    ReplicaSpec,
+    Signals,
+    StrategyState,
+)
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -26,21 +33,48 @@ class ShrinkToFitStrategy(Strategy):
     3. Arrives at the smallest replica size that can handle the workload
     """
 
-    # Standard Materialize replica sizes in order from smallest to largest, at
-    # least for local testing...
-    REPLICA_SIZES = ["1", "2", "4", "8", "16"]
+    def _get_replica_sizes_from_environment(
+        self, environment: Environment, cluster_id: str
+    ) -> list[str]:
+        """
+        Get replica sizes from environment
 
-    def validate_config(self, config: dict[str, Any]) -> None:
+        Args:
+            environment: Environment object containing replica_sizes data
+            cluster_id: Cluster ID for logging
+
+        Returns:
+            List of replica size strings, ordered from smallest to largest
+        """
+        # Extract size names from the replica_sizes data
+        sizes = []
+        for size_info in environment.replica_sizes:
+            sizes.append(size_info.size)
+
+        logger.debug(
+            "Available replica sizes",
+            extra={
+                "cluster_id": cluster_id,
+                "sizes": sizes,
+            },
+        )
+        return sizes
+
+    def validate_config(self, config: dict[str, Any], environment: Environment) -> None:
         """Validate shrink to fit strategy configuration"""
+        # Get replica sizes from environment
+        replica_sizes = self._get_replica_sizes_from_environment(environment, "unknown")
+
         required_keys = ["max_replica_size"]
         for key in required_keys:
             if key not in config:
                 raise ValueError(f"Missing required config key: {key}")
 
         max_size = config["max_replica_size"]
-        if not isinstance(max_size, str) or max_size not in self.REPLICA_SIZES:
+        if not isinstance(max_size, str) or max_size not in replica_sizes:
             raise ValueError(
-                f"max_replica_size must be a valid replica size: {max_size}"
+                f"max_replica_size must be a valid replica size: {max_size}, "
+                f"available sizes: {replica_sizes}"
             )
 
         # Optional cooldown period
@@ -53,32 +87,36 @@ class ShrinkToFitStrategy(Strategy):
         if "min_crash_count" in config and config["min_crash_count"] < 1:
             raise ValueError("min_crash_count must be >= 1")
 
-    def _get_sizes_up_to_max(self, max_size: str) -> list[str]:
+    def _get_sizes_up_to_max(
+        self, max_size: str, replica_sizes: list[str]
+    ) -> list[str]:
         """Get all replica sizes up to and including max_size"""
         try:
-            max_index = self.REPLICA_SIZES.index(max_size)
-            return self.REPLICA_SIZES[: max_index + 1]
+            max_index = replica_sizes.index(max_size)
+            return replica_sizes[: max_index + 1]
         except ValueError as e:
             raise ValueError(f"Invalid max_replica_size: {max_size}") from e
 
-    def _get_replica_size_index(self, size: str) -> int:
+    def _get_replica_size_index(self, size: str, replica_sizes: list[str]) -> int:
         """Get the index of a replica size in the ordered list"""
         try:
-            return self.REPLICA_SIZES.index(size)
+            return replica_sizes.index(size)
         except ValueError:
             # If size not in standard list, treat as unknown/maximum
-            return len(self.REPLICA_SIZES)
+            return len(replica_sizes)
 
     def decide_desired_state(
         self,
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
+        environment: Environment,
         cluster_info: ClusterInfo,
         current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make shrink to fit scaling decisions"""
-        self.validate_config(config)
+
+        self.validate_config(config, environment)
 
         desired = self._initialize_desired_state(
             current_state, cluster_info, current_desired_state
@@ -88,8 +126,10 @@ class ShrinkToFitStrategy(Strategy):
 
         max_replica_size = config["max_replica_size"]
 
+        replica_sizes = self._get_replica_sizes_from_environment(environment, "unknown")
+
         # Get all valid sizes up to max
-        valid_sizes = self._get_sizes_up_to_max(max_replica_size)
+        valid_sizes = self._get_sizes_up_to_max(max_replica_size, replica_sizes)
 
         # Find current replicas by size
         current_replicas = list(cluster_info.replicas)
@@ -213,7 +253,9 @@ class ShrinkToFitStrategy(Strategy):
                     and not is_crash_looping
                 ):
                     replica_spec = desired.target_replicas[replica_name]
-                    size_index = self._get_replica_size_index(replica_spec.size)
+                    size_index = self._get_replica_size_index(
+                        replica_spec.size, replica_sizes
+                    )
                     if size_index < smallest_healthy_index:
                         smallest_healthy_index = size_index
                         smallest_healthy_size = replica_spec.size
@@ -222,7 +264,9 @@ class ShrinkToFitStrategy(Strategy):
                 # Drop all replicas larger than the smallest healthy one
                 replicas_to_drop = []
                 for replica_name, replica_spec in desired.target_replicas.items():
-                    replica_size_index = self._get_replica_size_index(replica_spec.size)
+                    replica_size_index = self._get_replica_size_index(
+                        replica_spec.size, replica_sizes
+                    )
                     if replica_size_index > smallest_healthy_index:
                         replicas_to_drop.append((replica_name, replica_spec.size))
 

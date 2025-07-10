@@ -7,6 +7,7 @@ conflicts.
 
 from typing import Any
 
+from .environment import Environment
 from .log import get_logger
 from .models import (
     Action,
@@ -128,6 +129,7 @@ class StrategyCoordinator:
         ],  # (strategy_instance, config)
         cluster_info: ClusterInfo,
         signals: Signals,
+        environment: Environment,
         strategy_states: dict[str, StrategyState],  # strategy_type -> state
     ) -> tuple[list[Action], dict[str, StrategyState]]:
         """
@@ -137,6 +139,7 @@ class StrategyCoordinator:
             strategies_and_configs: List of (strategy_instance, config) tuples
             cluster_info: Information about the cluster
             signals: Activity and hydration signals
+            environment: Information about the Materialize environment
             strategy_states: Current state for each strategy type
 
         Returns:
@@ -162,7 +165,12 @@ class StrategyCoordinator:
 
             try:
                 desired_state, new_state = strategy.decide_desired_state(
-                    current_state, config, signals, cluster_info, current_desired_state
+                    current_state,
+                    config,
+                    signals,
+                    environment,
+                    cluster_info,
+                    current_desired_state,
                 )
                 current_desired_state = desired_state
                 new_states[strategy_type] = new_state

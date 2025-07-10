@@ -8,8 +8,15 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
+from ..environment import Environment
 from ..log import get_logger
-from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+from ..models import (
+    ClusterInfo,
+    DesiredState,
+    ReplicaSpec,
+    Signals,
+    StrategyState,
+)
 
 logger = get_logger(__name__)
 
@@ -32,6 +39,7 @@ class Strategy(ABC):
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
+        environment: Environment,
         cluster_info: ClusterInfo,
         current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
@@ -42,6 +50,8 @@ class Strategy(ABC):
             current_state: The current state of this strategy for the cluster
             config: Strategy configuration from mz_cluster_strategies table
             signals: Activity and hydration signals for the cluster
+            environment: Environment information about the running Materialize
+                environment
             cluster_info: Information about the cluster including current replicas
             current_desired_state: The desired state from the previous strategy in
                                   priority order, or None if this is the first strategy
@@ -83,12 +93,14 @@ class Strategy(ABC):
         return state.state_version == self.CURRENT_STATE_VERSION
 
     @abstractmethod
-    def validate_config(self, config: dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any], environment: Environment) -> None:
         """
         Validate strategy configuration
 
         Args:
             config: Configuration dictionary to validate
+            environment: Environment information about the running Materialize
+                environment
 
         Raises:
             ValueError: If configuration is invalid

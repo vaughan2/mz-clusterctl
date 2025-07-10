@@ -8,8 +8,15 @@ during idle periods.
 from datetime import datetime
 from typing import Any
 
+from ..environment import Environment
 from ..log import get_logger
-from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+from ..models import (
+    ClusterInfo,
+    DesiredState,
+    ReplicaSpec,
+    Signals,
+    StrategyState,
+)
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -25,7 +32,7 @@ class BurstStrategy(Strategy):
     3. Respects cooldown periods to avoid thrashing
     """
 
-    def validate_config(self, config: dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any], environment: Environment) -> None:
         """Validate burst strategy configuration"""
         required_keys = [
             "burst_replica_size",
@@ -46,11 +53,12 @@ class BurstStrategy(Strategy):
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
+        environment: Environment,
         cluster_info: ClusterInfo,
         current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make burst scaling decisions"""
-        self.validate_config(config)
+        self.validate_config(config, environment)
 
         desired = self._initialize_desired_state(
             current_state, cluster_info, current_desired_state

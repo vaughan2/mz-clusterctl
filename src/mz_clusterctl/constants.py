@@ -15,9 +15,6 @@ DEFAULT_MIN_CRASH_COUNT = 1
 # Default crash info lookback period (hours)
 DEFAULT_CRASH_LOOKBACK_HOURS = 1
 
-# Standard Materialize replica sizes (for shrink-to-fit strategy)
-STANDARD_REPLICA_SIZES = ["1", "2", "4", "8", "16"]
-
 # Strategy types
 STRATEGY_TYPE_BURST = "burst"
 STRATEGY_TYPE_IDLE_SUSPEND = "idle_suspend"

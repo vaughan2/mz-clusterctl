@@ -8,6 +8,7 @@ Replica recreation is handled by the target_size strategy when combined.
 from datetime import datetime
 from typing import Any
 
+from ..environment import Environment
 from ..log import get_logger
 from ..models import ClusterInfo, DesiredState, Signals, StrategyState
 from .base import Strategy
@@ -27,7 +28,7 @@ class IdleSuspendStrategy(Strategy):
     Note: Replica recreation is handled by the target_size strategy when combined.
     """
 
-    def validate_config(self, config: dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any], environment: Environment) -> None:
         """Validate idle suspend strategy configuration"""
         required_keys = ["idle_after_s"]
         for key in required_keys:
@@ -46,11 +47,12 @@ class IdleSuspendStrategy(Strategy):
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
+        environment: Environment,
         cluster_info: ClusterInfo,
         current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make idle suspend decisions"""
-        self.validate_config(config)
+        self.validate_config(config, environment)
 
         desired = self._initialize_desired_state(
             current_state, cluster_info, current_desired_state

@@ -9,8 +9,15 @@ If other size replicas exist when the target size replica is hydrated, it drops 
 from datetime import datetime
 from typing import Any
 
+from ..environment import Environment
 from ..log import get_logger
-from ..models import ClusterInfo, DesiredState, ReplicaSpec, Signals, StrategyState
+from ..models import (
+    ClusterInfo,
+    DesiredState,
+    ReplicaSpec,
+    Signals,
+    StrategyState,
+)
 from .base import Strategy
 
 logger = get_logger(__name__)
@@ -27,7 +34,7 @@ class TargetSizeStrategy(Strategy):
     4. Optionally uses a specific replica name for the target size replica
     """
 
-    def validate_config(self, config: dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any], environment: Environment) -> None:
         """Validate target size strategy configuration"""
         required_keys = ["target_size"]
         for key in required_keys:
@@ -48,11 +55,12 @@ class TargetSizeStrategy(Strategy):
         current_state: StrategyState,
         config: dict[str, Any],
         signals: Signals,
+        environment: Environment,
         cluster_info: ClusterInfo,
         current_desired_state: DesiredState | None = None,
     ) -> tuple[DesiredState, StrategyState]:
         """Make target size decisions"""
-        self.validate_config(config)
+        self.validate_config(config, environment)
 
         desired = self._initialize_desired_state(
             current_state, cluster_info, current_desired_state

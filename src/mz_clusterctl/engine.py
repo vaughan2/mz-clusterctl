@@ -7,6 +7,7 @@ and executing actions.
 
 from .coordinator import StrategyCoordinator
 from .db import Database
+from .environment import get_environment_info
 from .executor import Executor
 from .log import get_logger
 from .models import Action, ClusterInfo, StrategyConfig, StrategyState
@@ -28,9 +29,15 @@ class Engine:
     5. Persist state - save updated state
     """
 
-    def __init__(self, database_url: str, cluster_filter: str | None = None):
+    def __init__(
+        self,
+        database_url: str,
+        cluster_filter: str | None = None,
+        replica_sizes_override: list[str] | None = None,
+    ):
         self.database_url = database_url
         self.cluster_filter = cluster_filter
+        self.replica_sizes_override = replica_sizes_override
         self.db = Database(database_url)
         self.executor = Executor(self.db)
         self.coordinator = StrategyCoordinator()
@@ -168,6 +175,15 @@ class Engine:
             strategies_and_configs = []
             strategy_states = {}
 
+            # Get signals and environment
+            with self.db.get_connection() as conn:
+                signals = get_cluster_signals(conn, cluster.id, cluster.name)
+                environment = get_environment_info(conn, self.replica_sizes_override)
+            logger.info(
+                "Cluster signals retrieved",
+                extra={"cluster_id": cluster.id, "signals": str(signals)},
+            )
+
             for config in configs:
                 if config.strategy_type not in STRATEGY_REGISTRY:
                     logger.error(
@@ -183,7 +199,7 @@ class Engine:
                 strategy = strategy_class()
 
                 # Validate configuration
-                strategy.validate_config(config.config)
+                strategy.validate_config(config.config, environment)
 
                 # Prepare config dict
                 strategy_config = config.config.copy()
@@ -202,14 +218,6 @@ class Engine:
                 )
                 return []
 
-            # Get signals
-            with self.db.get_connection() as conn:
-                signals = get_cluster_signals(conn, cluster.id, cluster.name)
-            logger.info(
-                "Cluster signals retrieved",
-                extra={"cluster_id": cluster.id, "signals": str(signals)},
-            )
-
             logger.info(
                 "Running strategies",
                 extra={
@@ -218,7 +226,7 @@ class Engine:
                 },
             )
             actions, new_states = self.coordinator.coordinate(
-                strategies_and_configs, cluster, signals, strategy_states
+                strategies_and_configs, cluster, signals, environment, strategy_states
             )
 
             # Persist states (if not dry run)

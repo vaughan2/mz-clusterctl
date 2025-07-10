@@ -6,11 +6,19 @@ strategies. It monitors cluster activity, replica hydration status, and
 resource utilization to make intelligent decisions about scaling up, scaling
 down, or suspending replicas to optimize performance and cost.
 
-The tool operates as a stateless CLI that can be run periodically (e.g., via
-cron or Github Actions) to continuously manage your Materialize clusters
-according to your scaling requirements.
+The tool operates as a stateless CLI that can be run periodically (e.g. via
+Github Actions or cron) to continually manage Materialize clusters according to
+your scaling requirements.
 
 ## Setup
+
+The suggested way of running this tool is to clone this repository into your
+organization and set up a Github Actions workflow for running it periodically
+against your Materialize environment. See
+[README-github-actions.md](README-github-actions.md) to learn how to set that
+up.
+
+For a local development workflow, you can follow these instructions:
 
 1. **Install dependencies:**
    ```bash

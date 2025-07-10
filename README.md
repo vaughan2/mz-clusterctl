@@ -171,7 +171,7 @@ can handle the workload.
 ```json
 {
   "max_replica_size": "1600cc",
-  "cooldown_s": 120,
+  "cooldown_s": 120
 }
 ```
 
@@ -262,9 +262,10 @@ CREATE TABLE IF NOT EXISTS mz_cluster_strategy_actions (
 After creating these tables, you'll also need to grant the necessary permissions:
 
 ```sql
-GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_state TO materialize;
-GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_actions TO materialize;
-GRANT SELECT, INSERT, DELETE ON mz_cluster_strategies TO materialize;
+-- Replace 'your_username' with your actual database username
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_state TO your_username;
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategy_actions TO your_username;
+GRANT SELECT, INSERT, DELETE ON mz_cluster_strategies TO your_username;
 ```
 
 ### Running the Controller

@@ -46,9 +46,13 @@ mz_clusterctl/
 ├─ db.py                # PostgreSQL connection pool and database helpers
 ├─ models.py            # Data classes for StrategyState, ReplicaSpec, etc.
 ├─ signals.py           # Queries for activity and hydration status
+├─ environment.py       # Environment configuration and detection
+├─ constants.py         # Application constants and defaults
 ├─ strategies/
-│   ├─ base.py          # Strategy interface: decide(state, signals) -> Action[]
+│   ├─ base.py          # Strategy interface: decide_desired_state() -> DesiredState
+│   ├─ target_size.py   # Target size strategy implementation
 │   ├─ burst.py         # Auto-scaling strategy implementation
+│   ├─ shrink_to_fit.py # Shrink to fit strategy implementation
 │   └─ idle_suspend.py  # Idle suspend strategy implementation
 ├─ engine.py            # Orchestration: load config → run strategies → merge → render SQL
 ├─ executor.py          # SQL execution for apply mode

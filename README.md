@@ -107,6 +107,21 @@ in cluster sizing: when you update the `target_size` strategy for a cluster (or
 set one in the first place), a replica of the target size will be spun up and
 only once it is hydrated will other replicas be retired.
 
+## Managed and Unmanaged Clusters
+
+Materialize has the concept of _managed_ and _unmanaged_ clusters. This tool
+requires clusters to be configured as unmanaged. You can either do that by
+creating an unmanaged cluster in the first place or re-configuring a managed
+one:
+
+```sql
+-- create unmanaged cluster
+CREATE CLUSTER c REPLICAS ();
+
+-- re-configure an existing cluster
+ALTER CLUSTER c SET (MANAGED = false);
+```
+
 ## Strategies
 
 ### target_size

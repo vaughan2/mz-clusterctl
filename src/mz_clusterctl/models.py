@@ -40,7 +40,6 @@ class Action:
     """Represents an action to be taken on a cluster"""
 
     sql: str
-    expected_state_delta: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return self.sql

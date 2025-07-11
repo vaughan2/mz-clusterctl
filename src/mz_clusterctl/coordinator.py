@@ -39,7 +39,6 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=f"DROP CLUSTER REPLICA {current_cluster.name}.{replica_name}",
-                    expected_state_delta={"replicas_removed": 1},
                 )
             )
             logger.debug(
@@ -58,7 +57,6 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=replica_spec.to_create_sql(current_cluster.name),
-                    expected_state_delta={"replicas_added": 1},
                 )
             )
             logger.debug(
@@ -86,13 +84,11 @@ class StateDiffer:
                             f"DROP CLUSTER REPLICA "
                             f"{current_cluster.name}.{replica_name}"
                         ),
-                        expected_state_delta={"replicas_removed": 1},
                     )
                 )
                 actions.append(
                     Action(
                         sql=desired_replica.to_create_sql(current_cluster.name),
-                        expected_state_delta={"replicas_added": 1},
                     )
                 )
                 logger.debug(

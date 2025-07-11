@@ -306,17 +306,6 @@ class ShrinkToFitStrategy(Strategy):
         if changes_made:
             new_payload["last_decision_ts"] = now.isoformat()
 
-        # Track replica changes
-        replicas_added = len(desired_replica_names - initial_replica_names)
-        replicas_removed = len(initial_replica_names - desired_replica_names)
-
-        if replicas_added > 0 or replicas_removed > 0:
-            new_payload["last_scale_action"] = {
-                "timestamp": now.isoformat(),
-                "replicas_added": replicas_added,
-                "replicas_removed": replicas_removed,
-            }
-
         next_state = StrategyState(
             cluster_id=current_state.cluster_id,
             strategy_type=current_state.strategy_type,
@@ -332,7 +321,6 @@ class ShrinkToFitStrategy(Strategy):
         state = super().initial_state(cluster_id, strategy_type)
         state.payload = {
             "last_decision_ts": None,
-            "last_scale_action": None,
         }
         return state
 

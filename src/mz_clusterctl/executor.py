@@ -66,7 +66,6 @@ class Executor:
                 decision_ctx = {
                     "action_index": i,
                     "total_actions": len(actions),
-                    "expected_state_delta": action.expected_state_delta,
                 }
 
                 # Execute the SQL
@@ -105,7 +104,6 @@ class Executor:
                 decision_ctx = {
                     "action_index": i,
                     "total_actions": len(actions),
-                    "expected_state_delta": action.expected_state_delta,
                     "error": error_message,
                 }
 

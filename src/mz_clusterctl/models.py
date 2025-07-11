@@ -41,6 +41,11 @@ class Action:
 
     sql: str
 
+    # The reasons from the DesiredState that caused this action. We can't know
+    # which of the reasons spawned this particular Action, so we just include
+    # all of it.
+    reasons: list[str] = field(default_factory=list)
+
     def __str__(self) -> str:
         return self.sql
 

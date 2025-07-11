@@ -39,6 +39,7 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=f"DROP CLUSTER REPLICA {current_cluster.name}.{replica_name}",
+                    reasons=desired.reasons.copy(),
                 )
             )
             logger.debug(
@@ -57,6 +58,7 @@ class StateDiffer:
             actions.append(
                 Action(
                     sql=replica_spec.to_create_sql(current_cluster.name),
+                    reasons=desired.reasons.copy(),
                 )
             )
             logger.debug(
@@ -84,11 +86,13 @@ class StateDiffer:
                             f"DROP CLUSTER REPLICA "
                             f"{current_cluster.name}.{replica_name}"
                         ),
+                        reasons=desired.reasons.copy(),
                     )
                 )
                 actions.append(
                     Action(
                         sql=desired_replica.to_create_sql(current_cluster.name),
+                        reasons=desired.reasons.copy(),
                     )
                 )
                 logger.debug(

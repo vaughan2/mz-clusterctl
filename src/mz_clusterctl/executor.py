@@ -66,6 +66,7 @@ class Executor:
                 decision_ctx = {
                     "action_index": i,
                     "total_actions": len(actions),
+                    "reasons": action.reasons,
                 }
 
                 # Execute the SQL
@@ -105,6 +106,7 @@ class Executor:
                     "action_index": i,
                     "total_actions": len(actions),
                     "error": error_message,
+                    "reasons": action.reasons,
                 }
 
                 print(f"✗ {action.sql}")

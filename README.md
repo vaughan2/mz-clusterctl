@@ -225,8 +225,7 @@ following builtin collections and permissions:
 
 **RBAC Setup:** If using Materialize Cloud or a system with RBAC enabled,
 ensure the user specified in your connection string has the appropriate
-permissions. The default `materialize` user typically has these permissions,
-but custom users may need explicit grants.
+permissions.
 
 ### Manual Table Creation
 

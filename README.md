@@ -98,6 +98,15 @@ DELETE FROM mz_cluster_strategies
 WHERE cluster_id = 'u1' AND strategy_type = 'idle_suspend';
 ```
 
+## Reconfiguration Downtime (or lack thereof)
+
+The scheduling strategies will not retire hydrated replicas unless there is at
+least one other replica that is hydrated and can serve queries. For example,
+you can use the `target_size` strategy (see below) to do a zero-downtime change
+in cluster sizing: when you update the `target_size` strategy for a cluster (or
+set one in the first place), a replica of the target size will be spun up and
+only once it is hydrated will other replicas be retired.
+
 ## Strategies
 
 ### target_size

@@ -10,6 +10,10 @@ The tool operates as a stateless CLI that can be run periodically (e.g. via
 Github Actions or cron) to continually manage Materialize clusters according to
 your scaling requirements.
 
+> [!NOTE]
+> This is an experimental tool and might change in the future. We are actively
+> working on it and features might migrate into Materialize proper eventually.
+
 ## Setup
 
 The suggested way of running this tool is to clone this repository into your

@@ -130,7 +130,10 @@ ALTER CLUSTER c SET (MANAGED = false);
 
 ### target_size
 
-Ensures a cluster has exactly one replica of a specified size.
+Ensures a cluster has exactly one replica of a specified size. This can be used
+to do a zero-downtime resizing of a cluster: you set the new target size, and
+the existing replica(s) will only be retired once the new-size replica is
+hydrated.
 
 **Configuration:**
 - `target_size` (required): The desired replica size (e.g., "25cc", "100cc", "200cc", "800cc")

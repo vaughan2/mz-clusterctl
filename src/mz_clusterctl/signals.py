@@ -191,11 +191,11 @@ def _get_replica_crash_info(
             JOIN mz_internal.mz_cluster_replica_status_history h ON h.replica_id = cr.id
             WHERE c.name = %s
             AND h.status = 'offline'
-            AND h.occurred_at >= NOW() - INTERVAL '%s hours'
+            AND h.occurred_at >= NOW() - INTERVAL %s
             AND h.reason IS NOT NULL
             ORDER BY cr.name, h.occurred_at DESC
         """
-        params = (cluster_name, lookback_hours)
+        params = (cluster_name, f"{lookback_hours} hours")
         logger.debug(
             "Executing SQL",
             extra={

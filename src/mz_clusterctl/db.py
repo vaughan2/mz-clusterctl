@@ -25,8 +25,23 @@ def _sanitize_database_url(url: str) -> str:
     """Sanitize database URL to hide credentials"""
     # Pattern to match database URLs and hide credentials
     # postgres://user:password@host:port/db -> postgres://***:***@host:port/db
-    pattern = r"(postgres(?:ql)?://)[^:@]+:[^@]+(@[^/]+/?.*)$"
-    return re.sub(pattern, r"\1***:***\2", url)
+    # Also handle edge cases like URLs without passwords or with special characters
+    patterns = [
+        # Standard postgres://user:password@host pattern
+        (r"(postgres(?:ql)?://)[^:@/]+:[^@/]+(@[^/]+/?.*)$", r"\1***:***\2"),
+        # postgres://user@host pattern (no password)
+        (r"(postgres(?:ql)?://)[^:@/]+(@[^/]+/?.*)$", r"\1***\2"),
+        # Handle URLs with encoded characters
+        (r"(postgres(?:ql)?://)[^@/]+(@[^/]+/?.*)$", r"\1***\2"),
+    ]
+    
+    sanitized = url
+    for pattern, replacement in patterns:
+        sanitized = re.sub(pattern, replacement, sanitized)
+        if sanitized != url:
+            break
+    
+    return sanitized
 
 
 def _sanitize_error_message(message: str, database_url: str) -> str:

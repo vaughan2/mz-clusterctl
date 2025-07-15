@@ -32,7 +32,7 @@ class ReplicaSpec:
             options.append("INTERNAL = true")
 
         options_str = ", ".join(options)
-        return f"CREATE CLUSTER REPLICA {cluster_name}.{self.name} ({options_str})"
+        return f'CREATE CLUSTER REPLICA "{cluster_name}"."{self.name}" ({options_str})'
 
 
 @dataclass

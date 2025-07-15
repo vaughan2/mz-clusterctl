@@ -51,6 +51,11 @@ def main():
         "(e.g., '1,2,4,8'). Normally replica sizes are retrieved from Materialize "
         "itself.",
     )
+    common_parser.add_argument(
+        "--enable-experimental-strategies",
+        action="store_true",
+        help="Enable experimental strategies (e.g., shrink_to_fit)",
+    )
 
     # dry-run command
     _ = subparsers.add_parser(
@@ -104,6 +109,7 @@ def main():
         database_url=database_url,
         cluster_filter=args.cluster,
         replica_sizes_override=replica_sizes_override,
+        enable_experimental_strategies=args.enable_experimental_strategies,
     )
 
     try:

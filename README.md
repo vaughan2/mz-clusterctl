@@ -192,6 +192,12 @@ Suspends all cluster replicas after a configured period of inactivity.
 Creates replicas of multiple sizes, then removes larger ones when smaller ones
 can handle the workload.
 
+> [!NOTE]
+> This is an experimental strategy that is disabled by default. Enable using
+> `--enable-experimental-strategies`. For this strategy the semantics are less
+> obvious that as for the others, and it's easy to create a lot of expensive
+> replicas. So use with caution.
+
 **Configuration:**
 - `max_replica_size` (required): Maximum replica size to create (for example, "800cc" or "1600cc")
 - `cooldown_s` (optional): Cooldown period in seconds between decisions (default: 0)

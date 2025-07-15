@@ -34,10 +34,12 @@ class Engine:
         database_url: str,
         cluster_filter: str | None = None,
         replica_sizes_override: list[str] | None = None,
+        enable_experimental_strategies: bool = False,
     ):
         self.database_url = database_url
         self.cluster_filter = cluster_filter
         self.replica_sizes_override = replica_sizes_override
+        self.enable_experimental_strategies = enable_experimental_strategies
         self.db = Database(database_url)
         self.executor = Executor(self.db)
         self.coordinator = StrategyCoordinator()
@@ -186,6 +188,21 @@ class Engine:
                 if config.strategy_type not in STRATEGY_REGISTRY:
                     logger.error(
                         "Unknown strategy type",
+                        extra={
+                            "cluster_id": cluster.id,
+                            "strategy_type": config.strategy_type,
+                        },
+                    )
+                    continue
+
+                # Check for experimental strategies
+                if (
+                    config.strategy_type == "shrink_to_fit"
+                    and not self.enable_experimental_strategies
+                ):
+                    logger.warning(
+                        "Experimental strategy 'shrink_to_fit' disabled. "
+                        "Use --enable-experimental-strategies to enable.",
                         extra={
                             "cluster_id": cluster.id,
                             "strategy_type": config.strategy_type,

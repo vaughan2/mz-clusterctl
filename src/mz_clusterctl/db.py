@@ -145,14 +145,17 @@ class Database:
 
             for row in cur.fetchall():
                 cluster = ClusterInfo.from_db_row(row)
-                logger.debug(
-                    "Created ClusterInfo",
-                    extra={
-                        "cluster_id": cluster.id,
-                        "cluster_name": cluster.name,
-                        "replicas": cluster.replicas,
-                    },
-                )
+
+                # Only process user clusters (IDs starting with 'u')
+                if not cluster.id.startswith("u"):
+                    logger.debug(
+                        "Skipping non-user cluster",
+                        extra={
+                            "cluster_id": cluster.id,
+                            "cluster_name": cluster.name,
+                        },
+                    )
+                    continue
 
                 # Apply name filter if provided
                 if name_filter and not self._matches_filter(cluster.name, name_filter):
@@ -194,6 +197,15 @@ class Database:
                         exc_info=True,
                     )
                     raise
+
+                logger.debug(
+                    "Created ClusterInfo",
+                    extra={
+                        "cluster_id": cluster.id,
+                        "cluster_name": cluster.name,
+                        "replicas": cluster.replicas,
+                    },
+                )
 
                 clusters.append(cluster)
 

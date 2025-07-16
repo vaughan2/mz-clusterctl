@@ -5,13 +5,11 @@
 | Item                | Decision                                                                 |
 | ------------------- | ------------------------------------------------------------------------ |
 | Execution model     | **Stateless CLI**; invoked on‑demand (human or cron)                     |
-| Target env.         | Local workstation first; later k8s or CronJob                            |
-| Materialize version | Version‑locked to the current cluster                                    |
+| Target env.         | Local workstation first; later CronJob or Github Actions                 |
 | Concurrency         | Assume **single instance**; no leader‑election                           |
 | Signals in v0       | *Recent activity*, *hydration status*, *crash information*, static *strategy config*          |
 | Safety              | Best‑effort; no cross‑statement transactions; failures abort current run |
-| Permissions         | Super‑user connection via `DATABASE_URL` in `.env`                       |
-| Extensibility       | No plug‑in model yet; single codebase                                    |
+| Permissions         | Connection via `DATABASE_URL` in `.env`, must GRANT permissions          |
 
 ## 2. Database Artifacts
 
@@ -28,7 +26,7 @@ CREATE TABLE IF NOT EXISTS mz_cluster_strategies (
 CREATE TABLE IF NOT EXISTS mz_cluster_strategy_state (
     cluster_id    TEXT            NOT NULL,
     state_version INT             NOT NULL,
-    payload       JSONB           NOT NULL,          -- serialized Python dataclass
+    payload       JSONB           NOT NULL,
     updated_at    TIMESTAMPTZ     DEFAULT now()
 );
 
@@ -220,7 +218,7 @@ INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES
 -- Baseline + burst + idle suspend
 INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES 
 ('cluster-123', 'target_size', '{"target_size": "50cc"}'),
-('cluster-123', 'burst', '{"burst_replica_size": "xlarge", "cooldown_s": 60}'),
+('cluster-123', 'burst', '{"burst_replica_size": "1600cc", "cooldown_s": 60}'),
 ('cluster-123', 'idle_suspend', '{"idle_after_s": 3600}');
 ```
 
@@ -228,7 +226,7 @@ INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES
 ```sql
 -- Automatically find smallest viable replica size
 INSERT INTO mz_cluster_strategies (cluster_id, strategy_type, config) VALUES 
-('cluster-123', 'shrink_to_fit', '{"max_replica_size": "xlarge", "min_oom_count": 2}');
+('cluster-123', 'shrink_to_fit', '{"max_replica_size": "3200cc", "min_oom_count": 2}');
 ```
 
 **Conservative Approach:**

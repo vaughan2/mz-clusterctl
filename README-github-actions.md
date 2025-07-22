@@ -2,8 +2,9 @@
 
 ## Periodic mz-clusterctl Execution
 
-The `periodic-clusterctl.yml` workflow runs mz-clusterctl against your
-Materialize Cloud environment on a schedule.
+We provide an example `periodic-clusterctl.yml` workflow that runs
+mz-clusterctl against your Materialize Cloud environment on a schedule. It uses
+our Composite GitHub Action.
 
 ### Setup
 
@@ -28,15 +29,6 @@ Set these secrets in your GitHub repository settings:
 
 - **Schedule**: Currently set to run every 5 minutes (`*/5 * * * *`)
 - **Manual Trigger**: Can be triggered manually via GitHub Actions UI
-- **Execution**: Runs both dry-run and apply modes sequentially
-
-### Customization
-
-You can modify the workflow to:
-- Change the schedule frequency
-- Add environment-specific configurations
-- Include additional validation steps
-- Add notifications on failure
 
 ### Security Considerations
 

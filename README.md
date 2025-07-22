@@ -331,8 +331,8 @@ uv run mz-clusterctl apply --cluster "production-.*"
 The tool is designed to run periodically. A typical setup might run it every 1-5 minutes:
 
 **Using GitHub Actions:**
-For cloud-based periodic execution, see
-[README-github-actions.md](README-github-actions.md) for setup instructions.
+See [README-github-actions.md](README-github-actions.md) for setup
+instructions.
 
 **Using cron:**
 ```bash

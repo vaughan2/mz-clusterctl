@@ -16,9 +16,8 @@ your scaling requirements.
 
 ## Setup
 
-The suggested way of running this tool is to clone this repository into your
-organization and set up a Github Actions workflow for running it periodically
-against your Materialize environment. See
+The suggested way of running this tool is to use a GitHub Actions workflow for
+running it periodically against you Materialize environment. See
 [README-github-actions.md](README-github-actions.md) to learn how to set that
 up.
 

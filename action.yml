@@ -1,0 +1,48 @@
+name: 'Materialize Cluster Controller'
+description: 'Manage Materialize cluster replicas with configurable auto-scaling and idle shutdown strategies'
+author: 'Materialize Inc.'
+
+branding:
+  icon: 'activity'
+  color: 'blue'
+
+inputs:
+  database-url:
+    description: 'PostgreSQL connection URL for Materialize'
+    required: true
+  mode:
+    description: 'Operation mode: apply or dry-run'
+    required: false
+    default: 'apply'
+  verbosity:
+    description: 'Verbosity level: -v or -vv'
+    required: false
+    default: '-vv'
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.12'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: uv sync
+
+    - name: Run mz-clusterctl
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
+      run: |
+        uv run mz-clusterctl ${{ inputs.mode }} ${{ inputs.verbosity }}

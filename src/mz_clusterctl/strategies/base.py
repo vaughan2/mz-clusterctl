@@ -5,7 +5,7 @@ Defines the Strategy abstract base class that all scaling strategies must implem
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from ..environment import Environment
@@ -177,7 +177,7 @@ class Strategy(ABC):
 
         try:
             last_decision = datetime.fromisoformat(last_decision_ts)
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             time_since_last = (now - last_decision).total_seconds()
 
             if time_since_last < cooldown_s:

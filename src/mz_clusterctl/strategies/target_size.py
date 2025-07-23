@@ -6,7 +6,7 @@ If the target size replica doesn't exist, it creates one.
 If other size replicas exist when the target size replica is hydrated, it drops them.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from ..environment import Environment
@@ -179,7 +179,7 @@ class TargetSizeStrategy(Strategy):
 
         # Update state based on changes
         if changes_made:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
 
             new_payload["last_decision_ts"] = now.isoformat()
 

@@ -6,7 +6,7 @@ then drops larger replicas when smaller ones become hydrated, arriving at the
 smallest replica size needed.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from ..environment import Environment
@@ -300,7 +300,7 @@ class ShrinkToFitStrategy(Strategy):
         desired_replica_names = desired.get_replica_names()
         changes_made = initial_replica_names != desired_replica_names
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Update last decision timestamp if any changes were made
         if changes_made:

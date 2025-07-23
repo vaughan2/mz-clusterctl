@@ -5,7 +5,7 @@ Simple strategy that suspends cluster replicas after a period of inactivity.
 Replica recreation is handled by the target_size strategy when combined.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from ..environment import Environment
@@ -125,7 +125,7 @@ class IdleSuspendStrategy(Strategy):
 
         # Update last decision timestamp if any changes were made
         if changes_made:
-            new_payload["last_decision_ts"] = datetime.utcnow().isoformat()
+            new_payload["last_decision_ts"] = datetime.now(UTC).isoformat()
 
         next_state = StrategyState(
             cluster_id=current_state.cluster_id,

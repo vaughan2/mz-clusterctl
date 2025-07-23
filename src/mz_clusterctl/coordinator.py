@@ -38,7 +38,10 @@ class StateDiffer:
         for replica_name in to_remove:
             actions.append(
                 Action(
-                    sql=f'DROP CLUSTER REPLICA "{current_cluster.name}"."{replica_name}"',
+                    sql=(
+                        f"DROP CLUSTER REPLICA "
+                        f'"{current_cluster.name}"."{replica_name}"'
+                    ),
                     reasons=desired.reasons.copy(),
                 )
             )
@@ -83,7 +86,7 @@ class StateDiffer:
                 actions.append(
                     Action(
                         sql=(
-                            f'DROP CLUSTER REPLICA '
+                            f"DROP CLUSTER REPLICA "
                             f'"{current_cluster.name}"."{replica_name}"'
                         ),
                         reasons=desired.reasons.copy(),

@@ -34,13 +34,13 @@ def _sanitize_database_url(url: str) -> str:
         # Handle URLs with encoded characters
         (r"(postgres(?:ql)?://)[^@/]+(@[^/]+/?.*)$", r"\1***\2"),
     ]
-    
+
     sanitized = url
     for pattern, replacement in patterns:
         sanitized = re.sub(pattern, replacement, sanitized)
         if sanitized != url:
             break
-    
+
     return sanitized
 
 

@@ -1,0 +1,24 @@
+services:
+  materialize:
+    image: materialize/materialized:latest
+    command: --disable-license-key-checks
+    container_name: mz-clusterctl-test
+    ports:
+      - "127.0.0.1:6875:6875"
+      - "127.0.0.1:6876:6876"
+      - "127.0.0.1:6877:6877"
+    networks:
+      - mznet
+    environment:
+      MZ_NO_TELEMETRY: 1
+      MZ_SYSTEM_PARAMETER_DEFAULT: allowed_cluster_replica_sizes="25cc","50cc","100cc","200cc","300cc","400cc","600cc","800cc","1200cc","1600cc","3200cc";enable_rbac_checks=false
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "6875", "-U", "materialize"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+networks:
+  mznet:
+    driver: bridge

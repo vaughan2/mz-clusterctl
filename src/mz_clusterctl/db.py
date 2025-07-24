@@ -58,7 +58,9 @@ class Database:
     def __init__(self, database_url: str):
         self._database_url = database_url
         try:
-            self.pool = ConnectionPool(conninfo=database_url, min_size=1, max_size=10)
+            self.pool = ConnectionPool(
+                conninfo=database_url, min_size=1, max_size=10, open=True
+            )
         except Exception as e:
             sanitized_error = _sanitize_error_message(str(e), database_url)
             logger.error(

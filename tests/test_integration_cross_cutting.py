@@ -94,7 +94,9 @@ class TestMultipleStrategies:
 
             current_replicas = get_cluster_replicas(db_connection, cluster_id)
             current_replica_names = [name for name, _ in current_replicas]
-            assert len(current_replicas) == 0, f"Expected to see zero replicas but have {current_replica_names}"
+            assert len(current_replicas) == 0, (
+                f"Expected to see zero replicas but have {current_replica_names}"
+            )
 
 
 @pytest.mark.integration
@@ -179,6 +181,7 @@ class TestErrorHandling:
                 f"{successful_actions}"
             )
 
+
 @pytest.mark.integration
 class TestDryRun:
     """Integration tests for dry-run mode."""
@@ -208,9 +211,13 @@ class TestDryRun:
 
             # Verify that the output contains expected planned actions
             # Should mention the cluster name and show replica changes
-            assert test_cluster_name in output, f"Output should mention cluster {test_cluster_name}: {output}"
-            assert any(keyword in output.lower() for keyword in ["replica", "create", "drop", "target_replica"]), \
-                f"Output should mention replica operations: {output}"
+            assert test_cluster_name in output, (
+                f"Output should mention cluster {test_cluster_name}: {output}"
+            )
+            assert any(
+                keyword in output.lower()
+                for keyword in ["replica", "create", "drop", "target_replica"]
+            ), f"Output should mention replica operations: {output}"
 
             # Replicas should be unchanged after dry-run
             final_replicas = get_cluster_replicas(db_connection, cluster_id)

@@ -322,7 +322,7 @@ uv run mz-clusterctl dry-run --verbose
 
 **Target specific clusters**:
 ```bash
-uv run mz-clusterctl apply --cluster "production-.*"
+uv run mz-clusterctl apply --filter-clusters "production-.*"
 ```
 
 ### Periodic Operation
@@ -375,7 +375,7 @@ uv run mz-clusterctl wipe-state
 
 **Clear state for specific cluster:**
 ```bash
-uv run mz-clusterctl wipe-state --cluster "problematic-cluster"
+uv run mz-clusterctl wipe-state --filter-clusters "problematic-cluster"
 ```
 
 ## Quirks

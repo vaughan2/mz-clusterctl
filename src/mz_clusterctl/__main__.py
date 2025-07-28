@@ -30,7 +30,7 @@ def main():
     # Common arguments
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument(
-        "--cluster", type=str, help="Limit to clusters matching this name regex"
+        "--filter-clusters", type=str, help="Limit to clusters matching this name regex"
     )
     common_parser.add_argument(
         "--verbose",
@@ -107,7 +107,7 @@ def main():
     # Initialize engine
     engine = Engine(
         database_url=database_url,
-        cluster_filter=args.cluster,
+        cluster_filter=args.filter_clusters,
         replica_sizes_override=replica_sizes_override,
         enable_experimental_strategies=args.enable_experimental_strategies,
     )

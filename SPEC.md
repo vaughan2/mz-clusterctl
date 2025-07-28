@@ -51,7 +51,7 @@ mz‑clusterctl dry-run     # read-only dry‑run (prints SQL actions)
 mz‑clusterctl apply       # executes actions, writes audit log
 mz‑clusterctl wipe-state  # optional helper to clear mz_cluster_strategy_state
 Common flags:
-  --cluster <name-regex>   # limit to subset of clusters
+  --filter-clusters <name-regex>   # limit to subset of clusters
   --verbose/-v             # debug logging (-v for info, -vv for debug)
   --postgres-url           # PostgreSQL connection URL (overrides DATABASE_URL env var)
   --replica-sizes          # comma-separated list of replica sizes for local testing

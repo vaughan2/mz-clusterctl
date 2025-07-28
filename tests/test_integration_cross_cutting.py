@@ -240,7 +240,7 @@ class TestClusterFiltering:
     def test_cluster_filter_limits_scope(
         self, db_connection, clean_test_tables, materialize_url
     ):
-        """Test that --cluster filter limits which clusters are processed."""
+        """Test that --filter-clusters filter limits which clusters are processed."""
         cluster_name_1 = f"test_cluster_filter_1_{int(time.time())}"
         cluster_name_2 = f"test_cluster_filter_2_{int(time.time())}"
 
@@ -263,7 +263,10 @@ class TestClusterFiltering:
 
             # Run with cluster filter matching only first cluster
             run_clusterctl_command(
-                "apply", materialize_url, ["--cluster", ".*filter_1.*"], timeout=15
+                "apply",
+                materialize_url,
+                ["--filter-clusters", ".*filter_1.*"],
+                timeout=15,
             )
 
             # Verify cluster 1 was processed (should have new replica)

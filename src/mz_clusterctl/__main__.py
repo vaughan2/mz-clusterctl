@@ -56,6 +56,11 @@ def main():
         action="store_true",
         help="Enable experimental strategies (e.g., shrink_to_fit)",
     )
+    common_parser.add_argument(
+        "--cluster",
+        type=str,
+        help="Cluster to use for executing commands (executes SET cluster = <cluster>)",
+    )
 
     # dry-run command
     _ = subparsers.add_parser(
@@ -110,6 +115,7 @@ def main():
         cluster_filter=args.filter_clusters,
         replica_sizes_override=replica_sizes_override,
         enable_experimental_strategies=args.enable_experimental_strategies,
+        cluster=args.cluster,
     )
 
     try:

@@ -35,12 +35,14 @@ class Engine:
         cluster_filter: str | None = None,
         replica_sizes_override: list[str] | None = None,
         enable_experimental_strategies: bool = False,
+        cluster: str | None = None,
     ):
         self.database_url = database_url
         self.cluster_filter = cluster_filter
         self.replica_sizes_override = replica_sizes_override
         self.enable_experimental_strategies = enable_experimental_strategies
-        self.db = Database(database_url)
+        self.cluster = cluster
+        self.db = Database(database_url, cluster=cluster)
         self.executor = Executor(self.db)
         self.coordinator = StrategyCoordinator()
 

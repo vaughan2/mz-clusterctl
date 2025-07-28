@@ -55,8 +55,9 @@ def _sanitize_error_message(message: str, database_url: str) -> str:
 class Database:
     """Database connection manager and helper methods"""
 
-    def __init__(self, database_url: str):
+    def __init__(self, database_url: str, cluster: str | None = None):
         self._database_url = database_url
+        self._cluster = cluster
         try:
             self.pool = ConnectionPool(
                 conninfo=database_url, min_size=1, max_size=10, open=True
@@ -92,6 +93,26 @@ class Database:
         """Get a connection from the pool"""
         with self.pool.connection() as conn:
             conn.row_factory = dict_row
+            # Set cluster if specified
+            if self._cluster:
+                with conn.cursor() as cur:
+                    set_cluster_sql = f"SET cluster = {self._cluster}"
+                    logger.debug(
+                        "Setting cluster for connection",
+                        extra={"cluster": self._cluster, "sql": set_cluster_sql},
+                    )
+                    try:
+                        cur.execute(set_cluster_sql)
+                    except Exception as e:
+                        sanitized_error = _sanitize_error_message(
+                            str(e), self._database_url
+                        )
+                        logger.error(
+                            "Error setting cluster",
+                            extra={"cluster": self._cluster, "error": sanitized_error},
+                            exc_info=True,
+                        )
+                        raise
             yield conn
 
     def ensure_tables(self):

@@ -23,6 +23,14 @@ on:
         options:
           - '-v'
           - '-vv'
+      cluster:
+        description: 'Cluster to use for executing commands'
+        required: false
+        type: string
+      create-replica:
+        description: 'Create temporary replica with size (requires cluster)'
+        required: false
+        type: string
 
 jobs:
   clusterctl:
@@ -35,4 +43,6 @@ jobs:
           database-url: ${{ secrets.MATERIALIZE_DATABASE_URL }}
           mode: ${{ inputs.mode || 'apply' }}
           verbosity: ${{ inputs.verbosity || '-vv' }}
+          cluster: ${{ inputs.cluster }}
+          create-replica: ${{ inputs.create-replica }}
           python-version: '3.12'

@@ -18,6 +18,12 @@ inputs:
     description: 'Verbosity level: -v or -vv'
     required: false
     default: '-vv'
+  cluster:
+    description: 'Cluster to use for executing commands (executes SET cluster = <cluster>)'
+    required: false
+  create-replica:
+    description: 'Create a temporary replica for the cluster with optional size (requires cluster)'
+    required: false
   python-version:
     description: 'Python version to use'
     required: false
@@ -45,4 +51,11 @@ runs:
       env:
         DATABASE_URL: ${{ inputs.database-url }}
       run: |
-        uv run mz-clusterctl ${{ inputs.mode }} ${{ inputs.verbosity }}
+        ARGS="${{ inputs.mode }} ${{ inputs.verbosity }}"
+        if [ -n "${{ inputs.cluster }}" ]; then
+          ARGS="$ARGS --cluster ${{ inputs.cluster }}"
+        fi
+        if [ -n "${{ inputs.create-replica }}" ]; then
+          ARGS="$ARGS --create-replica ${{ inputs.create-replica }}"
+        fi
+        uv run mz-clusterctl $ARGS

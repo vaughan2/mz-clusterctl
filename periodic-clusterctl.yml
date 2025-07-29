@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Run mz-clusterctl
-        uses: materializeinc/mz-clusterctl@v1
+        uses: materializeinc/mz-clusterctl@v2
         with:
           database-url: ${{ secrets.MATERIALIZE_DATABASE_URL }}
           mode: ${{ inputs.mode || 'apply' }}

@@ -61,6 +61,13 @@ def main():
         type=str,
         help="Cluster to use for executing commands (executes SET cluster = <cluster>)",
     )
+    common_parser.add_argument(
+        "--create-replica",
+        nargs="?",
+        const="25cc",
+        metavar="SIZE",
+        help="Create a temporary replica for the cluster with optional size (default: 25cc, requires --cluster)",
+    )
 
     # dry-run command
     _ = subparsers.add_parser(
@@ -85,6 +92,14 @@ def main():
 
     if not args.command:
         parser.print_help()
+        sys.exit(1)
+
+    # Validate --create-replica requires --cluster
+    if args.create_replica is not None and not args.cluster:
+        print(
+            "Error: --create-replica requires --cluster to be specified",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Set up logging
@@ -116,15 +131,18 @@ def main():
         replica_sizes_override=replica_sizes_override,
         enable_experimental_strategies=args.enable_experimental_strategies,
         cluster=args.cluster,
+        create_replica=args.create_replica is not None,
+        create_replica_size=args.create_replica,
     )
 
     try:
-        if args.command == "dry-run":
-            engine.dry_run()
-        elif args.command == "apply":
-            engine.apply()
-        elif args.command == "wipe-state":
-            engine.wipe_state()
+        with engine:
+            if args.command == "dry-run":
+                engine.dry_run()
+            elif args.command == "apply":
+                engine.apply()
+            elif args.command == "wipe-state":
+                engine.wipe_state()
     except KeyboardInterrupt:
         print("\nInterrupted by user", file=sys.stderr)
         sys.exit(1)

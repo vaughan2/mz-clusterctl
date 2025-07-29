@@ -36,89 +36,102 @@ class Engine:
         replica_sizes_override: list[str] | None = None,
         enable_experimental_strategies: bool = False,
         cluster: str | None = None,
+        create_replica: bool = False,
+        create_replica_size: str | None = None,
     ):
         self.database_url = database_url
         self.cluster_filter = cluster_filter
         self.replica_sizes_override = replica_sizes_override
         self.enable_experimental_strategies = enable_experimental_strategies
         self.cluster = cluster
+        self.create_replica = create_replica
+        self.create_replica_size = create_replica_size or "25cc"
+        self._replica_created = False  # Track if we created the replica
         self.db = Database(database_url, cluster=cluster)
         self.executor = Executor(self.db)
         self.coordinator = StrategyCoordinator()
 
     def __enter__(self):
         self.db.__enter__()
+
+        # Create replica if requested
+        if self.create_replica and self.cluster:
+            self._create_temporary_replica()
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.db.__exit__(exc_type, exc_val, exc_tb)
+        try:
+            # Clean up replica if we created one (do this before closing database)
+            if self.create_replica and self.cluster:
+                self._drop_temporary_replica()
+        finally:
+            # Always close the database connection
+            self.db.__exit__(exc_type, exc_val, exc_tb)
 
     def dry_run(self):
         """Execute dry-run mode - dry run that shows what actions would be
         taken"""
 
-        with self.db:
-            self.db.ensure_tables()
-            actions_by_cluster = self._run_decision_cycle(dry_run=True)
+        self.db.ensure_tables()
+        actions_by_cluster = self._run_decision_cycle(dry_run=True)
 
-            if not any(actions_by_cluster.values()):
-                logger.info("No actions would be taken.")
-                return
+        if not any(actions_by_cluster.values()):
+            logger.info("No actions would be taken.")
+            return
 
-            print("Planned actions:")
-            print("=" * 60)
+        print("Planned actions:")
+        print("=" * 60)
 
-            for cluster_info, actions in actions_by_cluster.items():
-                if not actions:
-                    continue
+        for cluster_info, actions in actions_by_cluster.items():
+            if not actions:
+                continue
 
-                print(f"\nCluster: {cluster_info.name} ({cluster_info.id})")
-                print("-" * 40)
+            print(f"\nCluster: {cluster_info.name} ({cluster_info.id})")
+            print("-" * 40)
 
-                for i, action in enumerate(actions, 1):
-                    print(f"{i}. {action.sql}")
-                    print()
+            for i, action in enumerate(actions, 1):
+                print(f"{i}. {action.sql}")
+                print()
 
     def apply(self):
         """Execute apply mode - actually execute the actions"""
 
-        with self.db:
-            self.db.ensure_tables()
-            actions_by_cluster = self._run_decision_cycle(dry_run=False)
+        self.db.ensure_tables()
+        actions_by_cluster = self._run_decision_cycle(dry_run=False)
 
-            total_actions = sum(len(actions) for actions in actions_by_cluster.values())
-            if total_actions == 0:
-                logger.info("No actions to execute.")
-                return
+        total_actions = sum(len(actions) for actions in actions_by_cluster.values())
+        if total_actions == 0:
+            logger.info("No actions to execute.")
+            return
 
-            print(f"Executing {total_actions} actions...")
+        print(f"Executing {total_actions} actions...")
 
-            for cluster_info, actions in actions_by_cluster.items():
-                if not actions:
-                    continue
+        for cluster_info, actions in actions_by_cluster.items():
+            if not actions:
+                continue
 
-                print(f"\nProcessing cluster: {cluster_info.name}")
-                self.executor.execute_actions(cluster_info.id, actions)
-                print()
+            print(f"\nProcessing cluster: {cluster_info.name}")
+            self.executor.execute_actions(cluster_info.id, actions)
+            print()
 
     def wipe_state(self):
         """Clear strategy state table"""
         logger.info("Wiping strategy state")
 
-        with self.db:
-            self.db.ensure_tables()
-            logger.debug("Database tables ensured, starting wipe state operation")
+        self.db.ensure_tables()
+        logger.debug("Database tables ensured, starting wipe state operation")
 
-            if self.cluster_filter:
-                # Find clusters matching filter and wipe only those
-                clusters = self.db.get_clusters(self.cluster_filter)
-                for cluster in clusters:
-                    self.db.wipe_strategy_state(cluster.id)
-                    print(f"Wiped state for cluster: {cluster.name}")
-            else:
-                # Wipe all state
-                self.db.wipe_strategy_state()
-                print("Wiped all strategy state.")
+        if self.cluster_filter:
+            # Find clusters matching filter and wipe only those
+            clusters = self.db.get_clusters(self.cluster_filter)
+            for cluster in clusters:
+                self.db.wipe_strategy_state(cluster.id)
+                print(f"Wiped state for cluster: {cluster.name}")
+        else:
+            # Wipe all state
+            self.db.wipe_strategy_state()
+            print("Wiped all strategy state.")
 
     def _run_decision_cycle(
         self, dry_run: bool = True
@@ -326,3 +339,73 @@ class Engine:
         existing_state.payload["cluster_name"] = cluster.name
 
         return existing_state
+
+    def _create_temporary_replica(self):
+        """Create a temporary replica for the cluster, handle existing case"""
+        replica_name = f"{self.cluster}.mzclusterctl"
+        create_sql = f"CREATE CLUSTER REPLICA {replica_name} (SIZE '{self.create_replica_size}')"
+
+        logger.info(
+            "Creating temporary replica",
+            extra={"cluster": self.cluster, "replica_name": replica_name, "size": self.create_replica_size},
+        )
+
+        try:
+            self.db.execute_sql(create_sql)
+            logger.debug(
+                "Temporary replica created successfully",
+                extra={"cluster": self.cluster, "replica_name": replica_name, "size": self.create_replica_size},
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            # Check if the error is because the replica already exists
+            if "already exists" in error_msg or "duplicate" in error_msg or "multiple replicas named" in error_msg:
+                logger.warning(
+                    "Temporary replica already exists, will clean it up at the end",
+                    extra={"cluster": self.cluster, "replica_name": replica_name},
+                )
+            else:
+                logger.error(
+                    "Failed to create temporary replica",
+                    extra={
+                        "cluster": self.cluster,
+                        "replica_name": replica_name,
+                        "error": str(e),
+                    },
+                )
+                raise
+
+    def _drop_temporary_replica(self):
+        """Drop the temporary replica, always attempt cleanup regardless of creation"""
+        replica_name = f"{self.cluster}.mzclusterctl"
+        drop_sql = f"DROP CLUSTER REPLICA {replica_name}"
+
+        logger.info(
+            "Cleaning up temporary replica",
+            extra={"cluster": self.cluster, "replica_name": replica_name},
+        )
+
+        try:
+            self.db.execute_sql(drop_sql)
+            logger.debug(
+                "Temporary replica cleaned up successfully",
+                extra={"cluster": self.cluster, "replica_name": replica_name},
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            # Check if the error is because the replica doesn't exist
+            if "does not exist" in error_msg or "not found" in error_msg:
+                logger.debug(
+                    "Temporary replica did not exist, cleanup not needed",
+                    extra={"cluster": self.cluster, "replica_name": replica_name},
+                )
+            else:
+                logger.error(
+                    "Failed to cleanup temporary replica",
+                    extra={
+                        "cluster": self.cluster,
+                        "replica_name": replica_name,
+                        "error": str(e),
+                    },
+                )
+                # Don't re-raise to avoid masking the original error if we're in cleanup

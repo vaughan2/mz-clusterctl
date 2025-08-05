@@ -325,6 +325,17 @@ uv run mz-clusterctl dry-run --verbose
 uv run mz-clusterctl apply --filter-clusters "production-.*"
 ```
 
+**Set cluster that we execute queries on**:
+```bash
+uv run mz-clusterctl apply --cluster my_cluster
+```
+
+**Create temporary replica for executing queries**:
+```bash
+uv run mz-clusterctl apply --cluster my_cluster --create-replica 25cc
+```
+The replica will be dropped at the end of a tool run.
+
 ### Periodic Operation
 
 The tool is designed to run periodically. A typical setup might run it every 1-5 minutes:

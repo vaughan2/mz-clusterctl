@@ -250,47 +250,24 @@ class Database:
             return clusters
 
     def get_strategy_configs(
-        self, cluster_id: str | None = None
+        self
     ) -> list[StrategyConfig]:
         """Get strategy configurations from mz_cluster_strategies"""
         with self.get_connection() as conn, conn.cursor() as cur:
-            if cluster_id:
-                sql = "SELECT * FROM mz_cluster_strategies WHERE cluster_id = %s"
-                params = (cluster_id,)
-                logger.debug(
-                    "Executing SQL",
-                    extra={
-                        "sql": sql,
-                        "params": params,
-                    },
+            sql = "SELECT * FROM mz_cluster_strategies"
+            logger.debug("Executing SQL", extra={"sql": sql, "params": None})
+            try:
+                cur.execute(sql)
+            except Exception as e:
+                sanitized_error = _sanitize_error_message(
+                    str(e), self._database_url
                 )
-                try:
-                    cur.execute(sql, params)
-                except Exception as e:
-                    sanitized_error = _sanitize_error_message(
-                        str(e), self._database_url
-                    )
-                    logger.error(
-                        "Error executing SQL",
-                        extra={"sql": sql, "params": params, "error": sanitized_error},
-                        exc_info=True,
-                    )
-                    raise
-            else:
-                sql = "SELECT * FROM mz_cluster_strategies"
-                logger.debug("Executing SQL", extra={"sql": sql, "params": None})
-                try:
-                    cur.execute(sql)
-                except Exception as e:
-                    sanitized_error = _sanitize_error_message(
-                        str(e), self._database_url
-                    )
-                    logger.error(
-                        "Error executing SQL",
-                        extra={"sql": sql, "params": None, "error": sanitized_error},
-                        exc_info=True,
-                    )
-                    raise
+                logger.error(
+                    "Error executing SQL",
+                    extra={"sql": sql, "params": None, "error": sanitized_error},
+                    exc_info=True,
+                )
+                raise
 
             return [StrategyConfig.from_db_row(row) for row in cur.fetchall()]
 

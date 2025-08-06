@@ -161,6 +161,10 @@ class Engine:
 
         actions_by_cluster = {}
 
+        # Get environment info once for all clusters
+        with self.db.get_connection() as conn:
+            environment = get_environment_info(conn, self.replica_sizes_override)
+
         # Get signals for all clusters at once
         cluster_ids = [
             cluster.id for cluster in clusters if cluster.id in configs_by_cluster
@@ -186,7 +190,7 @@ class Engine:
 
             # Always use coordinator approach
             actions_by_cluster[cluster] = self._run_strategies(
-                cluster, configs, signals, dry_run
+                cluster, configs, signals, environment, dry_run
             )
 
         return actions_by_cluster
@@ -196,6 +200,7 @@ class Engine:
         cluster: ClusterInfo,
         configs: list[StrategyConfig],
         signals,
+        environment,
         dry_run: bool,
     ) -> list[Action]:
         """Run strategies using the coordinator approach"""
@@ -204,9 +209,6 @@ class Engine:
             strategies_and_configs = []
             strategy_states = {}
 
-            # Get environment info
-            with self.db.get_connection() as conn:
-                environment = get_environment_info(conn, self.replica_sizes_override)
 
             logger.info(
                 "Cluster signals",

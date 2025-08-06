@@ -18,6 +18,9 @@ inputs:
     description: 'Verbosity level: -v or -vv'
     required: false
     default: '-vv'
+  filter-clusters:
+    description: 'Limit to clusters matching this name regex'
+    required: false
   cluster:
     description: 'Cluster to use for executing commands (executes SET cluster = <cluster>)'
     required: false
@@ -57,5 +60,8 @@ runs:
         fi
         if [ -n "${{ inputs.create-replica }}" ]; then
           ARGS="$ARGS --create-replica ${{ inputs.create-replica }}"
+        fi
+        if [ -n "${{ inputs.filter-clusters }}" ]; then
+          ARGS="$ARGS --filter-clusters ${{ inputs.filter-clusters }}"
         fi
         uv run mz-clusterctl $ARGS

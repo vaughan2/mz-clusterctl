@@ -31,6 +31,10 @@ on:
         description: 'Create temporary replica with size (requires cluster)'
         required: false
         type: string
+      filter-clusters:
+        description: 'Limit to clusters matching this name regex'
+        required: false
+        type: string
 
 jobs:
   clusterctl:
@@ -45,4 +49,5 @@ jobs:
           verbosity: ${{ inputs.verbosity || '-vv' }}
           cluster: ${{ inputs.cluster }}
           create-replica: ${{ inputs.create-replica }}
+          filter-clusters: ${{ inputs.filter-clusters }}
           python-version: '3.12'

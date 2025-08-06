@@ -323,7 +323,7 @@ def _get_replica_crash_info(
             if cluster_id not in crash_info_by_cluster:
                 crash_info_by_cluster[cluster_id] = {}
 
-        logger.info(
+        logger.debug(
             "Replica crash information collected",
             extra={
                 "cluster_count": len(cluster_ids),

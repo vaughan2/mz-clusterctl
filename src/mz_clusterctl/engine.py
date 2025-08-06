@@ -192,7 +192,7 @@ class Engine:
 
             # Get signals and environment
             with self.db.get_connection() as conn:
-                signals = get_cluster_signals(conn, cluster.id, cluster.name)
+                signals = get_cluster_signals(conn, cluster.id)
                 environment = get_environment_info(conn, self.replica_sizes_override)
             logger.info(
                 "Cluster signals retrieved",

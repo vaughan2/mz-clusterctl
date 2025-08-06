@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 def get_cluster_signals(
-    conn: psycopg.Connection, cluster_id: str, cluster_name: str
+    conn: psycopg.Connection, cluster_id: str
 ) -> Signals:
     """
     Get activity and hydration signals for a cluster
@@ -24,7 +24,6 @@ def get_cluster_signals(
     Args:
         conn: Database connection
         cluster_id: ID of the cluster
-        cluster_name: Name of the cluster
 
     Returns:
         Signals object with activity and hydration data
@@ -35,10 +34,10 @@ def get_cluster_signals(
     signals.last_activity_ts = _get_last_activity(conn, cluster_id)
 
     # Get hydration status per replica
-    signals.hydration_status = _get_hydration_status(conn, cluster_name)
+    signals.hydration_status = _get_hydration_status(conn, cluster_id)
 
     # Get replica crash information
-    signals.replica_crash_info = _get_replica_crash_info(conn, cluster_name)
+    signals.replica_crash_info = _get_replica_crash_info(conn, cluster_id)
 
     return signals
 
@@ -92,7 +91,7 @@ def _get_last_activity(conn: psycopg.Connection, cluster_id: str) -> datetime | 
 
 
 def _get_hydration_status(
-    conn: psycopg.Connection, cluster_name: str
+    conn: psycopg.Connection, cluster_id: str
 ) -> dict[str, bool]:
     """
     Get hydration status per replica for a cluster using mz_compute_hydration_statuses
@@ -114,10 +113,10 @@ def _get_hydration_status(
             JOIN mz_indexes i ON i.cluster_id = c.id
             LEFT JOIN mz_internal.mz_hydration_statuses h
                 ON h.replica_id = cr.id AND h.object_id = i.id
-            WHERE c.name = %s
+            WHERE c.id = %s
             GROUP BY cr.name
         """
-        params = (cluster_name,)
+        params = (cluster_id,)
         logger.debug(
             "Executing SQL",
             extra={
@@ -151,7 +150,7 @@ def _get_hydration_status(
         logger.debug(
             "Per-replica hydration status calculated",
             extra={
-                "cluster_name": cluster_name,
+                "cluster_id": cluster_id,
                 "hydration_status": hydration_status,
             },
         )
@@ -160,7 +159,7 @@ def _get_hydration_status(
 
 
 def _get_replica_crash_info(
-    conn: psycopg.Connection, cluster_name: str, lookback_hours: int = 1
+    conn: psycopg.Connection, cluster_id: str, lookback_hours: int = 1
 ) -> dict[str, dict[str, Any]]:
     """
     Get crash information for replicas in a cluster using
@@ -173,7 +172,7 @@ def _get_replica_crash_info(
 
     Args:
         conn: Database connection
-        cluster_name: Name of the cluster
+        cluster_id: ID of the cluster
         lookback_hours: Hours to look back for crash history (default: 24)
 
     Returns:
@@ -189,13 +188,13 @@ def _get_replica_crash_info(
             FROM mz_cluster_replicas cr
             JOIN mz_clusters c ON cr.cluster_id = c.id
             JOIN mz_internal.mz_cluster_replica_status_history h ON h.replica_id = cr.id
-            WHERE c.name = %s
+            WHERE c.id = %s
             AND h.status = 'offline'
             AND h.occurred_at >= NOW() - INTERVAL '%s hours'
             AND h.reason IS NOT NULL
             ORDER BY cr.name, h.occurred_at DESC
         """
-        params = (cluster_name, lookback_hours)
+        params = (cluster_id, lookback_hours)
         logger.debug(
             "Executing SQL",
             extra={
@@ -264,7 +263,7 @@ def _get_replica_crash_info(
         logger.info(
             "Replica crash information collected",
             extra={
-                "cluster_name": cluster_name,
+                "cluster_id": cluster_id,
                 "replicas_with_crashes": len(crash_info),
                 "crash_summary": {
                     name: {

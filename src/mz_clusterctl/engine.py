@@ -207,8 +207,9 @@ class Engine:
             # Get environment info
             with self.db.get_connection() as conn:
                 environment = get_environment_info(conn, self.replica_sizes_override)
+
             logger.info(
-                "Cluster signals retrieved",
+                "Cluster signals",
                 extra={"cluster_id": cluster.id, "signals": str(signals)},
             )
 

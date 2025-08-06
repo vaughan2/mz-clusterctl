@@ -331,8 +331,9 @@ class TestBurstStrategyIntegration:
             hydration_complete = False
             for _ in range(60):
                 hydration_status = _get_hydration_status(
-                    db_connection, cluster_id
+                    db_connection, [cluster_id]
                 )
+                hydration_status = hydration_status.get(cluster_id)
                 if hydration_status.get("regular_replica", False):
                     hydration_complete = True
                     break

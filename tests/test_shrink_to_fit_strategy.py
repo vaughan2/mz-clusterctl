@@ -440,8 +440,10 @@ class TestShrinkToFitStrategyIntegration:
 
             for _ in range(60):  # Wait up to 60 seconds
                 hydration_status = _get_hydration_status(
-                    db_connection, cluster_id
+                    db_connection, [cluster_id]
                 )
+
+                hydration_status = hydration_status.get(cluster_id)
 
                 # Check if the smallest replica is hydrated
                 size = expected_sizes[0]

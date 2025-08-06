@@ -161,6 +161,15 @@ class Engine:
 
         actions_by_cluster = {}
 
+        # Get signals for all clusters at once
+        cluster_ids = [
+            cluster.id for cluster in clusters if cluster.id in configs_by_cluster
+        ]
+        signals_by_cluster = {}
+        if cluster_ids:
+            with self.db.get_connection() as conn:
+                signals_by_cluster = get_cluster_signals(conn, cluster_ids)
+
         for cluster in clusters:
             actions_by_cluster[cluster] = []
 
@@ -173,16 +182,21 @@ class Engine:
                 continue
 
             configs = configs_by_cluster[cluster.id]
+            signals = signals_by_cluster.get(cluster.id)
 
             # Always use coordinator approach
             actions_by_cluster[cluster] = self._run_strategies(
-                cluster, configs, dry_run
+                cluster, configs, signals, dry_run
             )
 
         return actions_by_cluster
 
     def _run_strategies(
-        self, cluster: ClusterInfo, configs: list[StrategyConfig], dry_run: bool
+        self,
+        cluster: ClusterInfo,
+        configs: list[StrategyConfig],
+        signals,
+        dry_run: bool,
     ) -> list[Action]:
         """Run strategies using the coordinator approach"""
         try:
@@ -190,9 +204,8 @@ class Engine:
             strategies_and_configs = []
             strategy_states = {}
 
-            # Get signals and environment
+            # Get environment info
             with self.db.get_connection() as conn:
-                signals = get_cluster_signals(conn, cluster.id)
                 environment = get_environment_info(conn, self.replica_sizes_override)
             logger.info(
                 "Cluster signals retrieved",
@@ -343,23 +356,37 @@ class Engine:
     def _create_temporary_replica(self):
         """Create a temporary replica for the cluster, handle existing case"""
         replica_name = f"{self.cluster}.mzclusterctl"
-        create_sql = f"CREATE CLUSTER REPLICA {replica_name} (SIZE '{self.create_replica_size}')"
+        create_sql = (
+            f"CREATE CLUSTER REPLICA {replica_name} (SIZE '{self.create_replica_size}')"
+        )
 
         logger.info(
             "Creating temporary replica",
-            extra={"cluster": self.cluster, "replica_name": replica_name, "size": self.create_replica_size},
+            extra={
+                "cluster": self.cluster,
+                "replica_name": replica_name,
+                "size": self.create_replica_size,
+            },
         )
 
         try:
             self.db.execute_sql(create_sql)
             logger.debug(
                 "Temporary replica created successfully",
-                extra={"cluster": self.cluster, "replica_name": replica_name, "size": self.create_replica_size},
+                extra={
+                    "cluster": self.cluster,
+                    "replica_name": replica_name,
+                    "size": self.create_replica_size,
+                },
             )
         except Exception as e:
             error_msg = str(e).lower()
             # Check if the error is because the replica already exists
-            if "already exists" in error_msg or "duplicate" in error_msg or "multiple replicas named" in error_msg:
+            if (
+                "already exists" in error_msg
+                or "duplicate" in error_msg
+                or "multiple replicas named" in error_msg
+            ):
                 logger.warning(
                     "Temporary replica already exists, will clean it up at the end",
                     extra={"cluster": self.cluster, "replica_name": replica_name},

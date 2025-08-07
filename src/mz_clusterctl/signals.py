@@ -35,7 +35,9 @@ def get_cluster_signals(
         return {}
 
     # Get data for all clusters in batch
-    last_activities = _get_last_activity(conn, cluster_ids, max_activity_lookback_seconds)
+    last_activities = _get_last_activity(
+        conn, cluster_ids, max_activity_lookback_seconds
+    )
     hydration_statuses = _get_hydration_status(conn, cluster_ids)
     replica_crash_infos = _get_replica_crash_info(conn, cluster_ids)
 
@@ -143,12 +145,15 @@ def _get_hydration_status(
     conn: psycopg.Connection, cluster_ids: list[str]
 ) -> dict[str, dict[str, bool]]:
     """
-    Get hydration status per replica for multiple clusters using mz_compute_hydration_statuses
+    Get hydration status per replica for multiple clusters using
+    mz_compute_hydration_statuses
 
-    This queries the hydration status of compute objects on each replica in the clusters.
+    This queries the hydration status of compute objects on each replica in
+    the clusters.
 
     Returns:
-        Dict mapping cluster IDs to dicts mapping replica names to their hydration status
+        Dict mapping cluster IDs to dicts mapping replica names to their
+        hydration status
         (True if hydrated, False otherwise)
     """
     if not cluster_ids:

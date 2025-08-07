@@ -66,7 +66,8 @@ def main():
         nargs="?",
         const="25cc",
         metavar="SIZE",
-        help="Create a temporary replica for the cluster with optional size (default: 25cc, requires --cluster)",
+        help="Create a temporary replica for the cluster with optional size "
+        "(default: 25cc, requires --cluster)",
     )
 
     # dry-run command

@@ -150,3 +150,10 @@ class IdleSuspendStrategy(Strategy):
         """Idle suspend strategy has highest priority (3) -
         suspension trumps other strategies"""
         return 3
+
+    def get_max_activity_lookback_seconds(self, config: dict[str, Any]) -> int | None:
+        """Get the maximum lookback time needed for idle suspend strategy"""
+        idle_after_s = config.get("idle_after_s")
+        if idle_after_s is not None:
+            return int(idle_after_s)
+        return None

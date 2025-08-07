@@ -120,6 +120,18 @@ class Strategy(ABC):
         """
         return 0
 
+    def get_max_activity_lookback_seconds(self, config: dict[str, Any]) -> int | None:
+        """
+        Get the maximum lookback time in seconds this strategy needs for activity data
+
+        Args:
+            config: Strategy configuration
+
+        Returns:
+            Maximum lookback time in seconds, or None if no lookback is needed
+        """
+        return None
+
     def _initialize_desired_state(
         self,
         current_state: StrategyState,

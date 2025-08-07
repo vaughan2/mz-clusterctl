@@ -4,7 +4,7 @@ Signal queries for mz-clusterctl
 Functions to query activity and hydration status from Materialize system tables.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import psycopg
@@ -16,7 +16,9 @@ logger = get_logger(__name__)
 
 
 def get_cluster_signals(
-    conn: psycopg.Connection, cluster_ids: list[str]
+    conn: psycopg.Connection,
+    cluster_ids: list[str],
+    max_activity_lookback_seconds: int | None = None,
 ) -> dict[str, Signals]:
     """
     Get activity and hydration signals for multiple clusters
@@ -24,6 +26,7 @@ def get_cluster_signals(
     Args:
         conn: Database connection
         cluster_ids: List of cluster IDs
+        max_activity_lookback_seconds: Maximum seconds to look back for activity data
 
     Returns:
         Dictionary mapping cluster IDs to their Signals objects
@@ -32,7 +35,7 @@ def get_cluster_signals(
         return {}
 
     # Get data for all clusters in batch
-    last_activities = _get_last_activity(conn, cluster_ids)
+    last_activities = _get_last_activity(conn, cluster_ids, max_activity_lookback_seconds)
     hydration_statuses = _get_hydration_status(conn, cluster_ids)
     replica_crash_infos = _get_replica_crash_info(conn, cluster_ids)
 
@@ -49,7 +52,9 @@ def get_cluster_signals(
 
 
 def _get_last_activity(
-    conn: psycopg.Connection, cluster_ids: list[str]
+    conn: psycopg.Connection,
+    cluster_ids: list[str],
+    max_activity_lookback_seconds: int | None = None,
 ) -> dict[str, datetime | None]:
     """
     Get timestamp of last activity for multiple clusters using
@@ -57,6 +62,11 @@ def _get_last_activity(
 
     Queries the statement execution history to find the most recent activity
     for each specified cluster.
+
+    Args:
+        conn: Database connection
+        cluster_ids: List of cluster IDs
+        max_activity_lookback_seconds: Maximum seconds to look back for activity data
     """
     if not cluster_ids:
         return {}
@@ -64,14 +74,27 @@ def _get_last_activity(
     with conn.cursor() as cur:
         # Create placeholder string for IN clause
         placeholders = ",".join(["%s"] * len(cluster_ids))
+
+        # Build WHERE clause with optional time filter
+        where_conditions = [
+            f"cluster_id IN ({placeholders})",
+            "finished_at IS NOT NULL",
+        ]
+        params = list(cluster_ids)
+
+        if max_activity_lookback_seconds is not None:
+            where_conditions.append("finished_at >= NOW() - %s")
+            params.append(timedelta(seconds=max_activity_lookback_seconds))
+
+        where_clause = " AND ".join(where_conditions)
+
         sql = f"""
             SELECT cluster_id, MAX(finished_at) as last_activity
             FROM mz_internal.mz_statement_execution_history_redacted
-            WHERE cluster_id IN ({placeholders})
-            AND finished_at IS NOT NULL
+            WHERE {where_clause}
             GROUP BY cluster_id
         """
-        params = tuple(cluster_ids)
+        params = tuple(params)
         logger.debug(
             "Executing SQL",
             extra={

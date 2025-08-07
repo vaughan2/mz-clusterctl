@@ -165,6 +165,21 @@ class Engine:
         with self.db.get_connection() as conn:
             environment = get_environment_info(conn, self.replica_sizes_override)
 
+        # Calculate max activity lookback needed by any strategy
+        max_activity_lookback_seconds = None
+        for config in strategy_configs:
+            if config.strategy_type in STRATEGY_REGISTRY:
+                strategy_class = STRATEGY_REGISTRY[config.strategy_type]
+                strategy = strategy_class()
+                lookback = strategy.get_max_activity_lookback_seconds(config.config)
+                if lookback is not None:
+                    if max_activity_lookback_seconds is None:
+                        max_activity_lookback_seconds = lookback
+                    else:
+                        max_activity_lookback_seconds = max(
+                            max_activity_lookback_seconds, lookback
+                        )
+
         # Get signals for all clusters at once
         cluster_ids = [
             cluster.id for cluster in clusters if cluster.id in configs_by_cluster
@@ -172,7 +187,9 @@ class Engine:
         signals_by_cluster = {}
         if cluster_ids:
             with self.db.get_connection() as conn:
-                signals_by_cluster = get_cluster_signals(conn, cluster_ids)
+                signals_by_cluster = get_cluster_signals(
+                    conn, cluster_ids, max_activity_lookback_seconds
+                )
 
         for cluster in clusters:
             actions_by_cluster[cluster] = []
@@ -208,7 +225,6 @@ class Engine:
             # Prepare strategies and their configurations
             strategies_and_configs = []
             strategy_states = {}
-
 
             logger.info(
                 "Cluster signals",

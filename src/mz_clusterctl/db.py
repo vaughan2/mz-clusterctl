@@ -249,9 +249,7 @@ class Database:
 
             return clusters
 
-    def get_strategy_configs(
-        self
-    ) -> list[StrategyConfig]:
+    def get_strategy_configs(self) -> list[StrategyConfig]:
         """Get strategy configurations from mz_cluster_strategies"""
         with self.get_connection() as conn, conn.cursor() as cur:
             sql = "SELECT * FROM mz_cluster_strategies"
@@ -259,9 +257,7 @@ class Database:
             try:
                 cur.execute(sql)
             except Exception as e:
-                sanitized_error = _sanitize_error_message(
-                    str(e), self._database_url
-                )
+                sanitized_error = _sanitize_error_message(str(e), self._database_url)
                 logger.error(
                     "Error executing SQL",
                     extra={"sql": sql, "params": None, "error": sanitized_error},

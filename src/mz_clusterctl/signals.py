@@ -158,18 +158,48 @@ def _get_hydration_status(
         # Create placeholder string for IN clause
         placeholders = ",".join(["%s"] * len(cluster_ids))
         sql = f"""
+            WITH index_status AS (
+                SELECT
+                    c.id as cluster_id,
+                    cr.name as replica_name,
+                    COUNT(*) as total_objects,
+                    COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
+                FROM mz_clusters c
+                JOIN mz_cluster_replicas cr ON cr.cluster_id = c.id
+                JOIN mz_indexes i ON i.cluster_id = c.id
+                LEFT JOIN mz_internal.mz_hydration_statuses h
+                    ON h.replica_id = cr.id AND h.object_id = i.id
+                GROUP BY c.id, cr.name
+            ),
+            source_status AS (
+                SELECT
+                    c.id as cluster_id,
+                    cr.name as replica_name,
+                    COUNT(*) as total_objects,
+                    COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
+                FROM mz_clusters c
+                JOIN mz_cluster_replicas cr ON cr.cluster_id = c.id
+                JOIN mz_sources s ON s.cluster_id = c.id
+                LEFT JOIN mz_internal.mz_hydration_statuses h
+                    ON h.replica_id = cr.id AND h.object_id = s.id
+                WHERE
+                    -- currently, only Kafka sources require hydration
+                    s.type IN ('kafka')
+                GROUP BY c.id, cr.name
+            ),
+            combined_status AS (
+                SELECT * FROM index_status UNION ALL SELECT * FROM source_status
+            )
             SELECT
-                c.id as cluster_id,
-                cr.name as replica_name,
-                COUNT(*) as total_objects,
-                COUNT(*) FILTER (WHERE h.hydrated) as hydrated_objects
-            FROM mz_clusters c
-            JOIN mz_cluster_replicas cr ON cr.cluster_id = c.id
-            JOIN mz_indexes i ON i.cluster_id = c.id
-            LEFT JOIN mz_internal.mz_hydration_statuses h
-                ON h.replica_id = cr.id AND h.object_id = i.id
-            WHERE c.id IN ({placeholders})
-            GROUP BY c.id, cr.name
+                cluster_id,
+                replica_name,
+                SUM(total_objects) as total_objects,
+                SUM(hydrated_objects) as hydrated_objects
+            FROM
+                combined_status
+            WHERE
+                cluster_id IN ({placeholders})
+            GROUP BY cluster_id, replica_name
         """
         params = tuple(cluster_ids)
         logger.debug(

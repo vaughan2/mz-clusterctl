@@ -252,11 +252,7 @@ class Database:
     def get_strategy_configs(self) -> list[StrategyConfig]:
         """Get strategy configurations from mz_cluster_strategies"""
         with self.get_connection() as conn, conn.cursor() as cur:
-            # Order by updated_at DESC, then by config for deterministic ordering
-            sql = (
-                "SELECT * FROM mz_cluster_strategies "
-                "ORDER BY cluster_id, strategy_type, updated_at DESC, config::text"
-            )
+            sql = "SELECT * FROM mz_cluster_strategies"
             logger.debug("Executing SQL", extra={"sql": sql, "params": None})
             try:
                 cur.execute(sql)
@@ -269,45 +265,7 @@ class Database:
                 )
                 raise
 
-            configs = [StrategyConfig.from_db_row(row) for row in cur.fetchall()]
-
-            # Remove duplicate strategy types per cluster, keeping most recent
-            return self._deduplicate_strategy_configs(configs)
-
-    def _deduplicate_strategy_configs(
-        self, configs: list[StrategyConfig]
-    ) -> list[StrategyConfig]:
-        """
-        Remove duplicate strategy types per cluster, keeping most recent.
-
-        This method is extracted for easier unit testing.
-        """
-        filtered_configs = []
-        seen_target_size = {}
-        target_size_duplicates = 0
-
-        for config in configs:
-            if config.strategy_type == "target_size":
-                key = (config.cluster_id, config.strategy_type)
-                if key not in seen_target_size:
-                    seen_target_size[key] = config
-                    filtered_configs.append(config)
-                else:
-                    target_size_duplicates += 1
-            else:
-                # For non-target_size strategies, keep all configs (no dedupe)
-                filtered_configs.append(config)
-
-        if target_size_duplicates > 0:
-            logger.warning(
-                "Found duplicate target_size strategies, using most recent configs",
-                extra={
-                    "total_configs": len(configs),
-                    "target_size_duplicates_ignored": target_size_duplicates,
-                },
-            )
-
-        return filtered_configs
+            return [StrategyConfig.from_db_row(row) for row in cur.fetchall()]
 
     def get_strategy_state(self, cluster_id: str) -> StrategyState | None:
         """Get strategy state for a cluster"""
